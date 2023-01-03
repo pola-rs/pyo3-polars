@@ -1,4 +1,7 @@
 # Pyo3 bindings for Polars
+  <a href="https://crates.io/crates/pyo3-polars">
+    <img src="https://img.shields.io/crates/v/pyo3-polars.svg"/>
+  </a>
 
 See the `example` directory for a concrete example. Here we send a polars `DataFrame` to rust and then compute a
 `jaccard similarity` in parallel using `rayon` and rust hash sets.
