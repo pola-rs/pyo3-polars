@@ -1,0 +1,5 @@
+/pyo3-polars/target
+Cargo.lock
+.idea/
+venv/
+target/
