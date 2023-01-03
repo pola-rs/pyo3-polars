@@ -2,12 +2,16 @@
 name = "pyo3-polars"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+readme = "../README.md"
+repository = "https://github.com/pola-rs/pyo3-polars"
+description = "PyO3 bindings to polars"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-polars = {version = "*", default_features=false}
-polars-core = {version = "*", default_features=false}
+polars = {version = "0.26", default_features=false}
+polars-core = {version = "0.26", default_features=false}
 pyo3 = "0.17"
 thiserror = "1"
-arrow2 = "*"
+arrow2 = "0.15"

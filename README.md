@@ -31,6 +31,8 @@ shape: (2, 1)
 └─────────┘
 ```
 
+## Compile for release
+`$ make install-release`
 
 # What to expect
 
