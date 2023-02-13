@@ -24,7 +24,7 @@ impl std::convert::From<PyPolarsErr> for PyErr {
         use PyPolarsErr::*;
         match &err {
             Polars(err) => match err {
-                PolarsError::NotFound(name) => NotFoundError::new_err(name.to_string()),
+                // PolarsError::NotFound(name) => NotFoundError::new_err(name.to_string()),
                 PolarsError::ComputeError(err) => ComputeError::new_err(err.to_string()),
                 PolarsError::NoData(err) => NoDataError::new_err(err.to_string()),
                 PolarsError::ShapeMisMatch(err) => ShapeError::new_err(err.to_string()),
@@ -33,6 +33,13 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                 PolarsError::InvalidOperation(err) => PyValueError::new_err(err.to_string()),
                 PolarsError::ArrowError(err) => ArrowErrorException::new_err(format!("{:?}", err)),
                 PolarsError::Duplicate(err) => DuplicateError::new_err(err.to_string()),
+                PolarsError::ColumnNotFound(err) => ColumnNotFound::new_err(err.to_string()),
+                PolarsError::SchemaFieldNotFound(err) => {
+                    SchemaFieldNotFound::new_err(err.to_string())
+                }
+                PolarsError::StructFieldNotFound(err) => {
+                    StructFieldNotFound::new_err(err.to_string())
+                }
             },
             Arrow(err) => ArrowErrorException::new_err(format!("{:?}", err)),
             _ => default(),
@@ -51,7 +58,9 @@ impl Debug for PyPolarsErr {
     }
 }
 
-create_exception!(exceptions, NotFoundError, PyException);
+create_exception!(exceptions, ColumnNotFound, PyException);
+create_exception!(exceptions, SchemaFieldNotFound, PyException);
+create_exception!(exceptions, StructFieldNotFound, PyException);
 create_exception!(exceptions, ComputeError, PyException);
 create_exception!(exceptions, NoDataError, PyException);
 create_exception!(exceptions, ArrowErrorException, PyException);
