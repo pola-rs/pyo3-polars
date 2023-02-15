@@ -10,8 +10,8 @@ description = "PyO3 bindings to polars"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-polars = {version = "0.26", default_features=false}
-polars-core = {version = "0.26", default_features=false}
-pyo3 = "0.17"
+polars = { version = "0.27", default_features = false }
+polars-core = { version = "0.27", default_features = false }
+pyo3 = "0.18.1"
 thiserror = "1"
-arrow2 = "0.15"
+arrow2 = "0.16"
