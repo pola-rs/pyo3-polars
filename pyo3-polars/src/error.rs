@@ -26,8 +26,8 @@ impl std::convert::From<PyPolarsErr> for PyErr {
             Polars(err) => match err {
                 PolarsError::ComputeError(err) => ComputeError::new_err(err.to_string()),
                 PolarsError::NoData(err) => NoDataError::new_err(err.to_string()),
-                PolarsError::ShapeMisMatch(err) => ShapeError::new_err(err.to_string()),
-                PolarsError::SchemaMisMatch(err) => SchemaError::new_err(err.to_string()),
+                PolarsError::ShapeMismatch(err) => ShapeError::new_err(err.to_string()),
+                PolarsError::SchemaMismatch(err) => SchemaError::new_err(err.to_string()),
                 PolarsError::Io(err) => PyIOError::new_err(err.to_string()),
                 PolarsError::InvalidOperation(err) => PyValueError::new_err(err.to_string()),
                 PolarsError::ArrowError(err) => ArrowErrorException::new_err(format!("{:?}", err)),
