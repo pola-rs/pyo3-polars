@@ -1,4 +1,4 @@
-# Pyo3 bindings for Polars
+# Pyo3 extensions for Polars
   <a href="https://crates.io/crates/pyo3-polars">
     <img src="https://img.shields.io/crates/v/pyo3-polars.svg"/>
   </a>
