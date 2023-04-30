@@ -1,5 +1,5 @@
 import polars as pl
-from extend_polars import parallel_jaccard
+from extend_polars import parallel_jaccard, lazy_parallel_jaccard
 
 df = pl.DataFrame({
     "list_a": [[1, 2, 3], [5, 5]],
@@ -8,3 +8,4 @@ df = pl.DataFrame({
 
 print(df)
 print(parallel_jaccard(df, "list_a", "list_b"))
+print(lazy_parallel_jaccard(df.lazy(), "list_a", "list_b").collect())

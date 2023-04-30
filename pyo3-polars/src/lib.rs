@@ -43,6 +43,8 @@ mod ffi;
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
 use polars::prelude::*;
+use polars_lazy::frame::LazyFrame;
+use polars_plan::logical_plan::LogicalPlan;
 use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 
 #[repr(transparent)]
@@ -54,6 +56,11 @@ pub struct PySeries(pub Series);
 #[derive(Debug, Clone)]
 /// A wrapper around a [`DataFrame`] that can be converted to and from python with `pyo3`.
 pub struct PyDataFrame(pub DataFrame);
+
+#[repr(transparent)]
+#[derive(Clone)]
+/// A wrapper around a [`DataFrame`] that can be converted to and from python with `pyo3`.
+pub struct PyLazyFrame(pub LazyFrame);
 
 impl From<PyDataFrame> for DataFrame {
     fn from(value: PyDataFrame) -> Self {
@@ -67,6 +74,12 @@ impl From<PySeries> for Series {
     }
 }
 
+impl From<PyLazyFrame> for LazyFrame {
+    fn from(value: PyLazyFrame) -> Self {
+        value.0
+    }
+}
+
 impl AsRef<Series> for PySeries {
     fn as_ref(&self) -> &Series {
         &self.0
@@ -75,6 +88,12 @@ impl AsRef<Series> for PySeries {
 
 impl AsRef<DataFrame> for PyDataFrame {
     fn as_ref(&self) -> &DataFrame {
+        &self.0
+    }
+}
+
+impl AsRef<LazyFrame> for PyLazyFrame {
+    fn as_ref(&self) -> &LazyFrame {
         &self.0
     }
 }
@@ -107,6 +126,17 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
         Ok(PyDataFrame(DataFrame::new_no_checks(columns)))
     }
 }
+impl<'a> FromPyObject<'a> for PyLazyFrame {
+    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+        let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
+        let lp: LogicalPlan = ciborium::de::from_reader(&*s).map_err(
+            |e| PyPolarsErr::Other(
+                format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {}", e)
+            )
+        )?;
+        Ok(PyLazyFrame(LazyFrame::from(lp)))
+    }
+}
 
 impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -135,5 +165,18 @@ impl IntoPy<PyObject> for PyDataFrame {
         let polars = py.import("polars").expect("polars not installed");
         let df_object = polars.call_method1("DataFrame", (pyseries,)).unwrap();
         df_object.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for PyLazyFrame {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let polars = py.import("polars").expect("polars not installed");
+        let cls = polars.getattr("LazyFrame").unwrap();
+        let instance = cls.call_method1("__new__", (cls,)).unwrap();
+        let mut writer: Vec<u8> = vec![];
+        ciborium::ser::into_writer(&self.0.logical_plan, &mut writer).unwrap();
+
+        instance.call_method1("__setstate__", (&*writer,)).unwrap();
+        instance.into_py(py)
     }
 }
