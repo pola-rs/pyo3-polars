@@ -43,9 +43,13 @@ mod ffi;
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
 use polars::prelude::*;
-use polars_lazy::frame::LazyFrame;
-use polars_plan::logical_plan::LogicalPlan;
 use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+
+#[cfg(feature="lazy")]
+use {
+    polars_lazy::frame::LazyFrame,
+    polars_plan::logical_plan::LogicalPlan,
+};
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
@@ -57,6 +61,7 @@ pub struct PySeries(pub Series);
 /// A wrapper around a [`DataFrame`] that can be converted to and from python with `pyo3`.
 pub struct PyDataFrame(pub DataFrame);
 
+#[cfg(feature="lazy")]
 #[repr(transparent)]
 #[derive(Clone)]
 /// A wrapper around a [`DataFrame`] that can be converted to and from python with `pyo3`.
@@ -74,6 +79,7 @@ impl From<PySeries> for Series {
     }
 }
 
+#[cfg(feature="lazy")]
 impl From<PyLazyFrame> for LazyFrame {
     fn from(value: PyLazyFrame) -> Self {
         value.0
@@ -92,6 +98,7 @@ impl AsRef<DataFrame> for PyDataFrame {
     }
 }
 
+#[cfg(feature="lazy")]
 impl AsRef<LazyFrame> for PyLazyFrame {
     fn as_ref(&self) -> &LazyFrame {
         &self.0
@@ -126,6 +133,8 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
         Ok(PyDataFrame(DataFrame::new_no_checks(columns)))
     }
 }
+
+#[cfg(feature="lazy")]
 impl<'a> FromPyObject<'a> for PyLazyFrame {
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
         let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
@@ -168,6 +177,7 @@ impl IntoPy<PyObject> for PyDataFrame {
     }
 }
 
+#[cfg(feature="lazy")]
 impl IntoPy<PyObject> for PyLazyFrame {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let polars = py.import("polars").expect("polars not installed");
