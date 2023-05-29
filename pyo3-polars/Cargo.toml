@@ -12,6 +12,13 @@ description = "PyO3 bindings to polars"
 [dependencies]
 polars = { version = "0.29.0", default_features = false }
 polars-core = { version = "0.29.0", default_features = false }
+polars-plan = { version = "0.29.0", default_features = false, optional = true }
+polars-lazy = { version = "0.29.0", default_features = false, optional = true }
 pyo3 = "0.18.1"
 thiserror = "1"
 arrow2 = "0.17"
+ciborium = { version = "0.2.0", optional = true }
+
+[features]
+lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy", "ciborium"]
+
