@@ -8,4 +8,8 @@ df = pl.DataFrame({
 
 print(df)
 print(parallel_jaccard(df, "list_a", "list_b"))
+
+# warning this serializes/deserialized the data
+# it is recommended to only use LazyFrames that don't have any
+# DataFrame in their logical plan.
 print(lazy_parallel_jaccard(df.lazy(), "list_a", "list_b").collect())
