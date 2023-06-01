@@ -14,7 +14,7 @@ polars = { version = "0.30.0", default_features = false }
 polars-core = { version = "0.30.0", default_features = false }
 polars-plan = { version = "0.30.0", default_features = false, optional = true }
 polars-lazy = { version = "0.30.0", default_features = false, optional = true }
-pyo3 = "0.18.1"
+pyo3 = "0.19.0"
 thiserror = "1"
 arrow2 = "0.17"
 ciborium = { version = "0.2.0", optional = true }
