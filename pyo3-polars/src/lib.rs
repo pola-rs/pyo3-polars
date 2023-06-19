@@ -5,6 +5,10 @@
 //!
 //! From `src/lib.rs`.
 //! ```rust
+//! # use polars::prelude::*;
+//! # use pyo3::prelude::*;
+//! # use pyo3_polars::PyDataFrame;
+//!
 //! #[pyfunction]
 //! fn my_cool_function(pydf: PyDataFrame) -> PyResult<PyDataFrame> {
 //!     let df: DataFrame = pydf.into();
