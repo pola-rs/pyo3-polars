@@ -19,6 +19,7 @@ thiserror = "1"
 arrow2 = "0.17.4"
 ciborium = { version = "0.2.1", optional = true }
 
+
 [features]
 lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy", "ciborium"]
 
