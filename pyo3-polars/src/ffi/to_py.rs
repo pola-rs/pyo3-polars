@@ -1,7 +1,7 @@
-use arrow2::ffi;
 use polars::prelude::{ArrayRef, ArrowField};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
+use polars::export::arrow::ffi;
 
 /// Arrow array to Python.
 pub(crate) fn to_py_array(array: ArrayRef, py: Python, pyarrow: &PyModule) -> PyResult<PyObject> {

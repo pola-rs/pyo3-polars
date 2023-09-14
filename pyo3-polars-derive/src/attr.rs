@@ -41,6 +41,8 @@ impl Parse for ExprsFunctionOptions {
             } else if lookahead.peek(keywords::type_func) {
                 let attr = input.parse::<OutputFuncAttribute>()?;
                 options.output_type_fn = Some(attr.value)
+            } else {
+                panic!("didn't recognize attribute")
             }
         }
         Ok(options)

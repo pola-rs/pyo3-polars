@@ -9,7 +9,9 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     let fn_name = &ast.sig.ident;
 
     quote!(
+        use pyo3_polars::export::*;
         // create the outer public function
+        #[no_mangle]
         pub unsafe extern "C" fn #fn_name (e: *mut polars_ffi::SeriesExport, len: usize) -> polars_ffi::SeriesExport {
             let inputs = polars_ffi::import_series_buffer(e, len).unwrap();
 
@@ -18,7 +20,9 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
 
             // call the function
             let output: polars_core::prelude::Series = #fn_name(&inputs).unwrap();
-            polars_ffi::export_series(&output)
+            // let output = polars_core::prelude::Series::full_null("", 3, &DataType::Null);
+            let out = polars_ffi::export_series(&output);
+            out
         }
     )
 }
@@ -42,6 +46,7 @@ fn create_field_function(fn_name: &syn::Ident) -> proc_macro2::TokenStream {
     let inputs = get_inputs();
 
     quote! (
+        #[no_mangle]
         pub unsafe extern "C" fn #map_field_name(field: *mut polars_core::export::arrow::ffi::ArrowSchema, len: usize) -> polars_core::export::arrow::ffi::ArrowSchema {
             #inputs;
             let out = #fn_name(&inputs).unwrap();
@@ -55,6 +60,7 @@ fn create_field_function_from_with_dtype(fn_name: &syn::Ident, dtype: syn::Ident
     let inputs = get_inputs();
 
     quote! (
+        #[no_mangle]
         pub unsafe extern "C" fn #map_field_name(field: *mut polars_core::export::arrow::ffi::ArrowSchema, len: usize) -> polars_core::export::arrow::ffi::ArrowSchema {
             #inputs
 

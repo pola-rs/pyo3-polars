@@ -13,11 +13,9 @@ name = "tests"
 path = "tests/run.rs"
 
 [dependencies]
-#polars-core = {git="https://github.com/pola-rs/polars", branch="plugin", version = "*", default-features=false}
-#polars-ffi = {git="https://github.com/pola-rs/polars", branch="plugin", version = "*", default-features=false}
-polars-core = {path = "../../polars/crates/polars-core", version = "*", default-features=false}
-polars-ffi = {path= "../../polars/crates/polars-ffi", version = "*", default-features=false}
-polars-plan = {path= "../../polars/crates/polars-plan", version = "*", default-feautres=false}
+polars-core = {workspace = true}
+polars-ffi = {workspace = true}
+polars-plan = {workspace = true}
 syn = {version = "2", features= ["full", "extra-traits"]}
 quote = "1.0"
 proc-macro2 = "1.0"

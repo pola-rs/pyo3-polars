@@ -23,7 +23,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
-//! fn extend_polars(_py: Python, m: &PyModule) -> PyResult<()> {
+//! fn expression_lib(_py: Python, m: &PyModule) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(my_cool_function, m)?)?;
 //!     Ok(())
 //! }
@@ -33,7 +33,7 @@
 //!
 //! From `my_python_file.py`.
 //! ```python
-//! from extend_polars import my_cool_function
+//! from expression_lib import my_cool_function
 //!
 //! df = pl.DataFrame({
 //!     "foo": [1, 2, None],
@@ -43,6 +43,8 @@
 //! ```
 pub mod error;
 mod ffi;
+pub mod derive;
+pub mod export;
 
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;

@@ -1,7 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
+    "example/derive_expression/expression_lib",
     "example/extend_polars_python_dispatch/extend_polars",
     "pyo3-polars",
     "pyo3-polars-derive",
 ]
+
+[workspace.dependencies]
+polars = {path = "../polars/crates/polars", version = "*", default-features=false}
+polars-core = {path = "../polars/crates/polars-core", version = "*", default-features=false}
+polars-ffi = {path= "../polars/crates/polars-ffi", version = "*", default-features=false}
+polars-plan = {path= "../polars/crates/polars-plan", version = "*", default-feautres=false}
+polars-lazy = {path = "../polars/crates/polars-lazy", version = "*", default-features=false}
