@@ -7,11 +7,11 @@ venv:  ## Set up virtual environment
 
 install: venv
 	unset CONDA_PREFIX && \
-	source venv/bin/activate && maturin develop -m experssion_lib/Cargo.toml
+	source venv/bin/activate && maturin develop -m expression_lib/Cargo.toml
 
 install-release: venv
 	unset CONDA_PREFIX && \
-	source venv/bin/activate && maturin develop --release -m experssion_lib/Cargo.toml
+	source venv/bin/activate && maturin develop --release -m expression_lib/Cargo.toml
 
 clean:
 	-@rm -r venv
