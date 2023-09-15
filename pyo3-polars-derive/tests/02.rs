@@ -1,6 +1,6 @@
 use polars_core::error::PolarsResult;
+use polars_core::prelude::Series;
 use pyo3_polars_derive::polars_expr;
-use polars_core::prelude::{Series};
 
 #[polars_expr(output_type=Int32)]
 fn horizontal_product(series: &[Series]) -> PolarsResult<Series> {
@@ -11,7 +11,4 @@ fn horizontal_product(series: &[Series]) -> PolarsResult<Series> {
     Ok(acc)
 }
 
-
-fn main() {
-
-}
+fn main() {}

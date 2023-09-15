@@ -1,21 +1,21 @@
-use std::fmt::Debug;
+use crate::keywords;
 use proc_macro2::Ident;
+use std::fmt::Debug;
 use syn::parse::{Parse, ParseStream};
 use syn::Token;
-use crate::keywords;
 
 #[derive(Clone, Debug)]
 pub struct KeyWordAttribute<K, V> {
     pub kw: K,
-    pub value: V
+    pub value: V,
 }
 
 impl<K: Parse, V: Parse> Parse for KeyWordAttribute<K, V> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let kw= input.parse()?;
+        let kw = input.parse()?;
         let _: Token![=] = input.parse()?;
         let value = input.parse()?;
-        Ok(KeyWordAttribute{kw, value})
+        Ok(KeyWordAttribute { kw, value })
     }
 }
 
@@ -25,7 +25,7 @@ pub type OutputFuncAttribute = KeyWordAttribute<keywords::type_func, Ident>;
 #[derive(Default, Debug)]
 pub struct ExprsFunctionOptions {
     pub output_dtype: Option<Ident>,
-    pub output_type_fn: Option<Ident>
+    pub output_type_fn: Option<Ident>,
 }
 
 impl Parse for ExprsFunctionOptions {

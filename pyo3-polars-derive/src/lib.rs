@@ -3,7 +3,7 @@ mod keywords;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input};
+use syn::parse_macro_input;
 
 fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     let fn_name = &ast.sig.ident;
@@ -20,7 +20,6 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
 
             // call the function
             let output: polars_core::prelude::Series = #fn_name(&inputs).unwrap();
-            // let output = polars_core::prelude::Series::full_null("", 3, &DataType::Null);
             let out = polars_ffi::export_series(&output);
             out
         }
@@ -32,17 +31,18 @@ fn get_field_name(fn_name: &syn::Ident) -> syn::Ident {
 }
 
 fn get_inputs() -> proc_macro2::TokenStream {
-   quote!(
-            let inputs = std::slice::from_raw_parts(field, len);
-            let inputs = inputs.iter().map(|field| {
-                let field = polars_core::export::arrow::ffi::import_field_from_c(field).unwrap();
-                polars_core::prelude::Field::from(&field)
-            }).collect::<Vec<_>>();
-   )
+    quote!(
+             let inputs = std::slice::from_raw_parts(field, len);
+             let inputs = inputs.iter().map(|field| {
+                 let field = polars_core::export::arrow::ffi::import_field_from_c(field).unwrap();
+                 let out = polars_core::prelude::Field::from(&field);
+                 out
+             }).collect::<Vec<_>>();
+    )
 }
 
 fn create_field_function(fn_name: &syn::Ident) -> proc_macro2::TokenStream {
-    let map_field_name = get_field_name(&fn_name);
+    let map_field_name = get_field_name(fn_name);
     let inputs = get_inputs();
 
     quote! (
@@ -55,7 +55,10 @@ fn create_field_function(fn_name: &syn::Ident) -> proc_macro2::TokenStream {
     )
 }
 
-fn create_field_function_from_with_dtype(fn_name: &syn::Ident, dtype: syn::Ident) -> proc_macro2::TokenStream {
+fn create_field_function_from_with_dtype(
+    fn_name: &syn::Ident,
+    dtype: syn::Ident,
+) -> proc_macro2::TokenStream {
     let map_field_name = get_field_name(fn_name);
     let inputs = get_inputs();
 
@@ -71,8 +74,6 @@ fn create_field_function_from_with_dtype(fn_name: &syn::Ident, dtype: syn::Ident
         }
     )
 }
-
-
 
 #[proc_macro_attribute]
 pub fn polars_expr(attr: TokenStream, input: TokenStream) -> TokenStream {

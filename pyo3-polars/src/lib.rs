@@ -41,10 +41,12 @@
 //! })
 //! out_df = my_cool_function(df)
 //! ```
-pub mod error;
-mod ffi;
+#[cfg(feature = "derive")]
 pub mod derive;
+pub mod error;
+#[cfg(feature = "derive")]
 pub mod export;
+mod ffi;
 
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;

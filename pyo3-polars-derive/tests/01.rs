@@ -1,7 +1,7 @@
 use polars_core::error::PolarsResult;
-use pyo3_polars_derive::polars_expr;
-use polars_core::prelude::{Series, Field};
+use polars_core::prelude::{Field, Series};
 use polars_plan::dsl::FieldsMapper;
+use pyo3_polars_derive::polars_expr;
 
 fn horizontal_product_output(input_fields: &[Field]) -> PolarsResult<Field> {
     FieldsMapper::new(input_fields).map_to_supertype()
@@ -16,7 +16,4 @@ fn horizontal_product(series: &[Series]) -> PolarsResult<Series> {
     Ok(acc)
 }
 
-
-fn main() {
-
-}
+fn main() {}
