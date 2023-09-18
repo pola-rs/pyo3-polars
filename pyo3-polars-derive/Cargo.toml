@@ -13,12 +13,12 @@ name = "tests"
 path = "tests/run.rs"
 
 [dependencies]
-polars-core = {workspace = true}
-polars-ffi = {workspace = true}
-polars-plan = {workspace = true}
-syn = {version = "2", features= ["full", "extra-traits"]}
-quote = "1.0"
+polars-core = { workspace = true }
+polars-ffi = { workspace = true }
+polars-plan = { workspace = true }
 proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
 trybuild = { version = "1", features = ["diff"] }
