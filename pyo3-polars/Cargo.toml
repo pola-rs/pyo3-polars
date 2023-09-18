@@ -22,6 +22,6 @@ pyo3-polars-derive = { version = "*", path = "../pyo3-polars-derive", optional=t
 
 
 [features]
-lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy", "ciborium"]
+lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy/serde", "ciborium"]
 derive = ["pyo3-polars-derive", "polars-plan", "polars-ffi"]
 

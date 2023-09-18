@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use polars::prelude::PolarsError;
 use polars_core::error::ArrowError;
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyIndexError, PyIOError, PyRuntimeError, PyValueError};
+use pyo3::exceptions::{PyException, PyIOError, PyIndexError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use thiserror::Error;
 
