@@ -1,4 +1,10 @@
-# Pyo3 extensions for Polars
+## 1. Shared library plugins for Polars
+This is new functionality and not entirely stable, but should be preferred over `2.` as this
+will circumvent the GIL and will be the way we want to support extending polars.
+
+See more in `examples/derive_expression`.
+
+## 2. Pyo3 extensions for Polars
   <a href="https://crates.io/crates/pyo3-polars">
     <img src="https://img.shields.io/crates/v/pyo3-polars.svg"/>
   </a>

@@ -1,4 +1,4 @@
-use arrow2::ffi;
+use polars::export::arrow::ffi;
 use polars::prelude::{ArrayRef, ArrowField};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;

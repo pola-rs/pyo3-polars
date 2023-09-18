@@ -37,7 +37,7 @@ jobs:
         working-directory: pyo3-polars
 
       - run: make install
-        working-directory: example
+        working-directory: example/extend_polars_python_dispatch
 
       - run: venv/bin/python run.py
-        working-directory: example
+        working-directory: example/extend_polars_python_dispatch

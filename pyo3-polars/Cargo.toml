@@ -10,15 +10,18 @@ description = "PyO3 bindings to polars"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-polars = { version = "0.32.0", default_features = false }
-polars-core = { version = "0.32.0", default_features = false }
-polars-plan = { version = "0.32.0", default_features = false, optional = true }
-polars-lazy = { version = "0.32.0", default_features = false, optional = true }
+polars = { workspace = true, default-features = false }
+polars-core = { workspace = true, default-features = false }
+polars-ffi = { workspace = true, optional = true }
+polars-plan = { workspace = true, optional = true }
+polars-lazy = { workspace = true, optional = true }
 pyo3 = "0.19.0"
 thiserror = "1"
-arrow2 = "0.17.4"
 ciborium = { version = "0.2.1", optional = true }
+pyo3-polars-derive = { version = "*", path = "../pyo3-polars-derive", optional=true }
+
 
 [features]
-lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy", "ciborium"]
+lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy/serde", "ciborium"]
+derive = ["pyo3-polars-derive", "polars-plan", "polars-ffi"]
 

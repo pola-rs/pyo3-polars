@@ -16,3 +16,10 @@ install-release: venv
 clean:
 	-@rm -r venv
 	-@cd extend_polars && cargo clean
+
+
+run: install
+	source venv/bin/activate && python run.py
+
+run-release: install-release
+	source venv/bin/activate && python run.py

@@ -1,5 +1,5 @@
 use crate::error::PyPolarsErr;
-use arrow2::ffi;
+use polars::export::arrow::ffi;
 use polars::prelude::*;
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
