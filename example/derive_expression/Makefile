@@ -15,7 +15,7 @@ install-release: venv
 
 clean:
 	-@rm -r venv
-	-@cd experssion_lib && cargo clean
+	-@cd expression_lib && cargo clean
 
 
 run: install
