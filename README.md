@@ -70,7 +70,7 @@ out = df.with_columns(
 )
 ```
 
-See the full example in [example/derive_expression]: https://github.com/pola-rs/pyo3-polars/tree/plugin/example/derive_expression
+See the full example in [example/derive_expression]: https://github.com/pola-rs/pyo3-polars/tree/main/example/derive_expression
 
 ## 2. Pyo3 extensions for Polars
 
