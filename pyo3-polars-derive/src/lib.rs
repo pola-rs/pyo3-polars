@@ -12,14 +12,21 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
         use pyo3_polars::export::*;
         // create the outer public function
         #[no_mangle]
-        pub unsafe extern "C" fn #fn_name (e: *mut polars_ffi::SeriesExport, len: usize) -> polars_ffi::SeriesExport {
+        pub unsafe extern "C" fn #fn_name (e: *mut polars_ffi::SeriesExport, len: usize, kwargs: *const std::os::raw::c_char) -> polars_ffi::SeriesExport {
             let inputs = polars_ffi::import_series_buffer(e, len).unwrap();
+            let kwargs = std::ffi::CStr::from_ptr(kwargs).to_bytes();
+
+            let kwargs = if kwargs.is_empty() {
+                None
+            } else {
+                Some(std::str::from_utf8_unchecked(kwargs))
+            };
 
             // define the function
             #ast
 
             // call the function
-            let output: polars_core::prelude::Series = #fn_name(&inputs).unwrap();
+            let output: polars_core::prelude::Series = #fn_name(&inputs, kwargs).unwrap();
             let out = polars_ffi::export_series(&output);
             out
         }

@@ -8,7 +8,7 @@ fn horizontal_product_output(input_fields: &[Field]) -> PolarsResult<Field> {
 }
 
 #[polars_expr(type_func=horizontal_product_output)]
-fn horizontal_product(series: &[Series]) -> PolarsResult<Series> {
+fn horizontal_product(series: &[Series], _kwargs: Option<&str>) -> PolarsResult<Series> {
     let mut acc = series[0].clone();
     for s in &series[1..] {
         acc = &acc * s
