@@ -41,7 +41,10 @@ fn get_inputs() -> proc_macro2::TokenStream {
     )
 }
 
-fn create_field_function(fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+fn create_field_function(
+    fn_name: &syn::Ident, 
+    dtype_fn_name: &syn::Ident
+) -> proc_macro2::TokenStream {
     let map_field_name = get_field_name(fn_name);
     let inputs = get_inputs();
 
@@ -49,7 +52,7 @@ fn create_field_function(fn_name: &syn::Ident) -> proc_macro2::TokenStream {
         #[no_mangle]
         pub unsafe extern "C" fn #map_field_name(field: *mut polars_core::export::arrow::ffi::ArrowSchema, len: usize) -> polars_core::export::arrow::ffi::ArrowSchema {
             #inputs;
-            let out = #fn_name(&inputs).unwrap();
+            let out = #dtype_fn_name(&inputs).unwrap();
             polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow())
         }
     )
@@ -81,7 +84,7 @@ pub fn polars_expr(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let options = parse_macro_input!(attr as attr::ExprsFunctionOptions);
     let expanded_field_fn = if let Some(fn_name) = options.output_type_fn {
-        create_field_function(&fn_name)
+        create_field_function(&ast.sig.ident, &fn_name)
     } else if let Some(dtype) = options.output_dtype {
         create_field_function_from_with_dtype(&ast.sig.ident, dtype)
     } else {
