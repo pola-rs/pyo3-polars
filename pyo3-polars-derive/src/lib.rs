@@ -20,7 +20,7 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
                 ::std::option::Option::None
             } else {
                 use pyo3_polars::derive::parse_kwargs;
-                let value = parse_kwargs(value);
+                let value = parse_kwargs(kwargs);
                 ::std::option::Option::Some(value)
             };
 
@@ -51,8 +51,8 @@ fn get_inputs() -> proc_macro2::TokenStream {
 }
 
 fn create_field_function(
-    fn_name: &syn::Ident, 
-    dtype_fn_name: &syn::Ident
+    fn_name: &syn::Ident,
+    dtype_fn_name: &syn::Ident,
 ) -> proc_macro2::TokenStream {
     let map_field_name = get_field_name(fn_name);
     let inputs = get_inputs();
