@@ -17,9 +17,11 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
             let kwargs = std::ffi::CStr::from_ptr(kwargs).to_bytes();
 
             let kwargs = if kwargs.is_empty() {
-                None
+                ::std::option::Option::None
             } else {
-                Some(std::str::from_utf8_unchecked(kwargs))
+                use pyo3_polars::derive::parse_kwargs;
+                let value = parse_kwargs(value);
+                ::std::option::Option::Some(value)
             };
 
             // define the function

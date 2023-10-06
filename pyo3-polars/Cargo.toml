@@ -19,7 +19,8 @@ polars-plan = { workspace = true, optional = true }
 pyo3 = "0.19.0"
 pyo3-polars-derive = { version = "0.1.0", path = "../pyo3-polars-derive", optional = true }
 thiserror = "1"
+serde_json = {version = "1.0", optional = true }
 
 [features]
 lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy/serde", "ciborium"]
-derive = ["pyo3-polars-derive", "polars-plan", "polars-ffi"]
+derive = ["pyo3-polars-derive", "polars-plan", "polars-ffi", "serde_json"]

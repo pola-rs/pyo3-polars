@@ -11,7 +11,7 @@ df = pl.DataFrame({
 
 
 out = df.with_columns(
-   pig_latin = pl.col("names").language.pig_latinnify(),
+    pig_latin = pl.col("names").language.pig_latinnify(),
 ).with_columns(
     hamming_dist = pl.col("names").dist.hamming_distance("pig_latin"),
     jaccard_sim = pl.col("dist_a").dist.jaccard_similarity("dist_b"),
