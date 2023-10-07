@@ -28,3 +28,17 @@ out = df.with_columns(
 )
 
 print(out)
+
+
+# Tests we can return errors from FFI.
+try:
+    out.with_columns(
+    appended_args=pl.col("names").language.append_args(
+        float_arg=True,
+        integer_arg=True,
+        boolean_arg=True,
+        string_arg="example",
+        dict_arg={"foo": "bar"}
+    ))
+except pl.ComputeError as e:
+    assert "the plugin failed with message" in str(e)

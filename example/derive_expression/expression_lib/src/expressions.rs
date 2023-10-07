@@ -60,16 +60,40 @@ fn haversine(inputs: &[Series], _kwargs: Option<Kwargs>) -> PolarsResult<Series>
     Ok(out)
 }
 
+fn map_err(msg: &str) -> PolarsError {
+    polars_err!(ComputeError: "{msg}")
+}
+
 #[polars_expr(output_type=Utf8)]
 fn append_kwargs(input: &[Series], kwargs: Option<Kwargs>) -> PolarsResult<Series> {
     let input = &input[0];
     let kwargs = kwargs.ok_or_else(|| polars_err!(ComputeError: "expected kwargs"))?;
 
-    let float_arg = kwargs.get("float_arg").unwrap().as_f64().unwrap();
-    let integer_arg = kwargs.get("integer_arg").unwrap().as_i64().unwrap();
-    let string_arg = kwargs.get("string_arg").unwrap().as_str().unwrap();
-    let boolean_arg = kwargs.get("boolean_arg").unwrap().as_bool().unwrap();
-    let dict_arg = kwargs.get("dict_arg").unwrap().as_object().unwrap();
+    let float_arg = kwargs
+        .get("float_arg")
+        .ok_or_else(|| map_err("expected 'float_arg'"))?
+        .as_f64()
+        .ok_or_else(|| map_err("expected float"))?;
+    let integer_arg = kwargs
+        .get("integer_arg")
+        .ok_or_else(|| map_err("expected 'integer_arg'"))?
+        .as_i64()
+        .ok_or_else(|| map_err("expected integer"))?;
+    let string_arg = kwargs
+        .get("string_arg")
+        .ok_or_else(|| map_err("expected 'string_arg'"))?
+        .as_str()
+        .ok_or_else(|| map_err("expected string"))?;
+    let boolean_arg = kwargs
+        .get("boolean_arg")
+        .ok_or_else(|| map_err("expected 'boolean_arg'"))?
+        .as_bool()
+        .ok_or_else(|| map_err("expected boolean"))?;
+    let dict_arg = kwargs
+        .get("dict_arg")
+        .ok_or_else(|| map_err("expected 'dict_arg'"))?
+        .as_object()
+        .ok_or_else(|| map_err("expected dict"))?;
 
     let input = input.cast(&DataType::Utf8)?;
     let ca = input.utf8().unwrap();

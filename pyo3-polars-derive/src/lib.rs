@@ -3,24 +3,40 @@ mod keywords;
 
 use proc_macro::TokenStream;
 use quote::quote;
+use std::sync::atomic::{AtomicBool, Ordering};
 use syn::parse_macro_input;
+
+static INIT: AtomicBool = AtomicBool::new(false);
 
 fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     let fn_name = &ast.sig.ident;
 
+    let is_init = INIT.swap(true, Ordering::Relaxed);
+
+    // Only expose the error retrieval function on the first expression.
+    let error_msg_fn = if !is_init {
+        quote!(
+            pub use pyo3_polars::derive::get_last_error_message;
+        )
+    } else {
+        quote!()
+    };
+
     quote!(
         use pyo3_polars::export::*;
+
+        #error_msg_fn
+
         // create the outer public function
         #[no_mangle]
-        pub unsafe extern "C" fn #fn_name (e: *mut polars_ffi::SeriesExport, len: usize, kwargs: *const std::os::raw::c_char) -> polars_ffi::SeriesExport {
+        pub unsafe extern "C" fn #fn_name (e: *mut polars_ffi::SeriesExport, len: usize, kwargs: *const std::os::raw::c_char) -> *mut polars_ffi::SeriesExport {
             let inputs = polars_ffi::import_series_buffer(e, len).unwrap();
             let kwargs = std::ffi::CStr::from_ptr(kwargs).to_bytes();
 
             let kwargs = if kwargs.is_empty() {
                 ::std::option::Option::None
             } else {
-                use pyo3_polars::derive::parse_kwargs;
-                let value = parse_kwargs(kwargs);
+                let value = pyo3_polars::derive::_parse_kwargs(kwargs);
                 ::std::option::Option::Some(value)
             };
 
@@ -28,9 +44,14 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
             #ast
 
             // call the function
-            let output: polars_core::prelude::Series = #fn_name(&inputs, kwargs).unwrap();
-            let out = polars_ffi::export_series(&output);
-            out
+            let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, kwargs);
+            match result {
+                Ok(out) => Box::into_raw(Box::new(polars_ffi::export_series(&out))),
+                Err(err) => {
+                    pyo3_polars::derive::_update_last_error(err);
+                    std::ptr::null_mut()
+                }
+            }
         }
     )
 }
