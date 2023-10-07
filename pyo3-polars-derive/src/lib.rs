@@ -8,19 +8,22 @@ use syn::parse_macro_input;
 
 static INIT: AtomicBool = AtomicBool::new(false);
 
-fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
-    let fn_name = &ast.sig.ident;
-
+fn insert_error_function() -> proc_macro2::TokenStream {
     let is_init = INIT.swap(true, Ordering::Relaxed);
 
     // Only expose the error retrieval function on the first expression.
-    let error_msg_fn = if !is_init {
+    if !is_init {
         quote!(
             pub use pyo3_polars::derive::get_last_error_message;
         )
     } else {
-        quote!()
-    };
+        proc_macro2::TokenStream::new()
+    }
+}
+
+fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
+    let fn_name = &ast.sig.ident;
+    let error_msg_fn = insert_error_function();
 
     quote!(
         use pyo3_polars::export::*;
