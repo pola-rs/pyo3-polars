@@ -32,7 +32,12 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
 
         // create the outer public function
         #[no_mangle]
-        pub unsafe extern "C" fn #fn_name (e: *mut polars_ffi::SeriesExport, len: usize, kwargs: *const std::os::raw::c_char) -> *mut polars_ffi::SeriesExport {
+        pub unsafe extern "C" fn #fn_name (
+            e: *mut polars_ffi::SeriesExport,
+            len: usize,
+            kwargs: *const std::os::raw::c_char,
+            return_value: *mut polars_ffi::SeriesExport
+        )  {
             let inputs = polars_ffi::import_series_buffer(e, len).unwrap();
             let kwargs = std::ffi::CStr::from_ptr(kwargs).to_bytes();
 
@@ -49,10 +54,13 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
             // call the function
             let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, kwargs);
             match result {
-                Ok(out) => Box::into_raw(Box::new(polars_ffi::export_series(&out))),
+                Ok(out) => {
+                    // Update return value.
+                    *return_value =  polars_ffi::export_series(&out);
+                },
                 Err(err) => {
+                    // Set latest error, but leave return value in empty state.
                     pyo3_polars::derive::_update_last_error(err);
-                    std::ptr::null_mut()
                 }
             }
         }
@@ -89,9 +97,19 @@ fn create_field_function(
             return_value: *mut polars_core::export::arrow::ffi::ArrowSchema,
         ) {
             #inputs;
-            let out = #dtype_fn_name(&inputs).unwrap();
-            let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
-            *return_value = out;
+
+            let result = #dtype_fn_name(&inputs);
+
+            match result {
+                Ok(out) => {
+                    let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+                    *return_value = out;
+                },
+                Err(err) => {
+                    // Set latest error, but leave return value in empty state.
+                    pyo3_polars::derive::_update_last_error(err);
+                }
+            }
         }
     )
 }

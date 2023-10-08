@@ -7,7 +7,7 @@ use std::ffi::CString;
 pub type Kwargs = serde_json::Map<String, Value>;
 
 thread_local! {
-    static LAST_ERROR: RefCell<Option<PolarsError>> = RefCell::new(None);
+    static LAST_ERROR: RefCell<CString> = RefCell::new(CString::default());
 }
 
 pub unsafe fn _parse_kwargs(kwargs: &[u8]) -> Kwargs {
@@ -21,17 +21,12 @@ pub unsafe fn _parse_kwargs(kwargs: &[u8]) -> Kwargs {
 }
 
 pub fn _update_last_error(err: PolarsError) {
-    LAST_ERROR.with(|prev| *prev.borrow_mut() = Some(err))
+    let msg = format!("{}", err);
+    let msg = CString::new(msg).unwrap();
+    LAST_ERROR.with(|prev| *prev.borrow_mut() = msg)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn get_last_error_message() -> *const std::os::raw::c_char {
-    let err = LAST_ERROR
-        .with(|prev| prev.borrow_mut().take())
-        .expect("should be set");
-    let msg = format!("{}", err);
-    let msg = CString::new(msg).unwrap();
-    let ptr = msg.as_ptr();
-    std::mem::forget(msg);
-    ptr
+    LAST_ERROR.with(|prev| prev.borrow_mut().as_ptr())
 }
