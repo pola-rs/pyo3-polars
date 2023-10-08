@@ -83,10 +83,15 @@ fn create_field_function(
 
     quote! (
         #[no_mangle]
-        pub unsafe extern "C" fn #map_field_name(field: *mut polars_core::export::arrow::ffi::ArrowSchema, len: usize) -> polars_core::export::arrow::ffi::ArrowSchema {
+        pub unsafe extern "C" fn #map_field_name(
+            field: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            len: usize,
+            return_value: *mut polars_core::export::arrow::ffi::ArrowSchema,
+        ) {
             #inputs;
             let out = #dtype_fn_name(&inputs).unwrap();
-            polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow())
+            let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+            *return_value = out;
         }
     )
 }
@@ -100,13 +105,18 @@ fn create_field_function_from_with_dtype(
 
     quote! (
         #[no_mangle]
-        pub unsafe extern "C" fn #map_field_name(field: *mut polars_core::export::arrow::ffi::ArrowSchema, len: usize) -> polars_core::export::arrow::ffi::ArrowSchema {
+        pub unsafe extern "C" fn #map_field_name(
+            field: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            len: usize,
+            return_value: *mut polars_core::export::arrow::ffi::ArrowSchema
+        ) {
             #inputs
 
             let mapper = polars_plan::dsl::FieldsMapper::new(&inputs);
             let dtype = polars_core::datatypes::DataType::#dtype;
             let out = mapper.with_dtype(dtype).unwrap();
-            polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow())
+            let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+            *return_value = out;
         }
     )
 }
