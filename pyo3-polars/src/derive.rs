@@ -1,23 +1,21 @@
 use polars::prelude::PolarsError;
+use polars_core::error::{to_compute_err, PolarsResult};
 pub use pyo3_polars_derive::polars_expr;
-pub use serde_json;
-pub use serde_json::{Map, Value};
+use serde::Deserialize;
 use std::cell::RefCell;
 use std::ffi::CString;
-pub type Kwargs = serde_json::Map<String, Value>;
+
+pub type DefaultKwargs = serde_pickle::Value;
 
 thread_local! {
     static LAST_ERROR: RefCell<CString> = RefCell::new(CString::default());
 }
 
-pub unsafe fn _parse_kwargs(kwargs: &[u8]) -> Kwargs {
-    let kwargs = std::str::from_utf8_unchecked(kwargs);
-    let value = serde_json::from_str(kwargs).unwrap();
-    if let Value::Object(kwargs) = value {
-        return kwargs;
-    } else {
-        panic!("expected kwargs dictionary")
-    }
+pub unsafe fn _parse_kwargs<'a, T>(kwargs: &'a [u8]) -> PolarsResult<T>
+where
+    T: Deserialize<'a>,
+{
+    serde_pickle::from_slice(kwargs, Default::default()).map_err(to_compute_err)
 }
 
 pub fn _update_last_error(err: PolarsError) {

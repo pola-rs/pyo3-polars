@@ -23,14 +23,13 @@ out = df.with_columns(
         integer_arg=93,
         boolean_arg=False,
         string_arg="example",
-        dict_arg={"foo": "bar"}
     )
 )
 
 print(out)
 
 
-# Tests we can return errors from FFI.
+# Tests we can return errors from FFI by passing wrong types.
 try:
     out.with_columns(
     appended_args=pl.col("names").language.append_args(
@@ -38,7 +37,6 @@ try:
         integer_arg=True,
         boolean_arg=True,
         string_arg="example",
-        dict_arg={"foo": "bar"}
     ))
 except pl.ComputeError as e:
     assert "the plugin failed with message" in str(e)

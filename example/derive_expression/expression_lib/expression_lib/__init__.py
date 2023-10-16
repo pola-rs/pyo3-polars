@@ -23,7 +23,6 @@ class Language:
         integer_arg: int,
         string_arg: str,
         boolean_arg: bool,
-        dict_arg: dict,
     ) -> pl.Expr:
         """
         This example shows how arguments other than `Series` can be used.
@@ -36,7 +35,6 @@ class Language:
                 "integer_arg": integer_arg,
                 "string_arg": string_arg,
                 "boolean_arg": boolean_arg,
-                "dict_arg": dict_arg,
             },
             symbol="append_kwargs",
             is_elementwise=True,

@@ -34,18 +34,25 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
         #[no_mangle]
         pub unsafe extern "C" fn #fn_name (
             e: *mut polars_ffi::SeriesExport,
-            len: usize,
-            kwargs: *const std::os::raw::c_char,
+            input_len: usize,
+            kwargs_ptr: *const u8,
+            kwargs_len: usize,
             return_value: *mut polars_ffi::SeriesExport
         )  {
-            let inputs = polars_ffi::import_series_buffer(e, len).unwrap();
-            let kwargs = std::ffi::CStr::from_ptr(kwargs).to_bytes();
+            let inputs = polars_ffi::import_series_buffer(e, input_len).unwrap();
+
+            let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
 
             let kwargs = if kwargs.is_empty() {
                 ::std::option::Option::None
             } else {
-                let value = pyo3_polars::derive::_parse_kwargs(kwargs);
-                ::std::option::Option::Some(value)
+                match pyo3_polars::derive::_parse_kwargs(kwargs)  {
+                    Ok(value) => Some(value),
+                    Err(err) => {
+                        pyo3_polars::derive::_update_last_error(err);
+                        return;
+                    }
+                }
             };
 
             // define the function
