@@ -175,7 +175,7 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
             "str" => Ok(PyAnyValue(AnyValue::Utf8(ob.extract::<&str>()?))),
             "bool" => Ok(PyAnyValue(AnyValue::Boolean(ob.extract::<bool>()?))),
             "datetime" => {
-                let timestamp = (ob.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
+                let timestamp = (ob.call_method0("timestamp")?.extract::<f64>()? * 1_000.0) as i64;
                 Ok(PyAnyValue(AnyValue::Datetime(
                     timestamp,
                     TimeUnit::Milliseconds,
@@ -199,7 +199,7 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
                 Ok(PyAnyValue(AnyValue::Date(days)))
             }
             "timedelta" => {
-                let seconds = (ob.call_method0("total_seconds")?.extract::<f64>()? * 1000.0) as i64;
+                let seconds = (ob.call_method0("total_seconds")?.extract::<f64>()? * 1_000.0) as i64;
                 Ok(PyAnyValue(AnyValue::Duration(
                     seconds,
                     TimeUnit::Milliseconds,
@@ -212,10 +212,10 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
                 let microseconds = ob.getattr("microsecond")?.extract::<i64>()?;
 
                 Ok(PyAnyValue(AnyValue::Time(
-                    (hours * 3600000000000)
-                        + (minutes * 60000000000)
-                        + (seconds * 1000000000)
-                        + (microseconds * 1000),
+                    (hours * 3_600_000_000_000)
+                        + (minutes * 60_000_000_000)
+                        + (seconds * 1_000_000_000)
+                        + (microseconds * 1_000),
                 )))
             }
             "Series" => Ok(PyAnyValue(AnyValue::List(ob.extract::<PySeries>()?.0))),
@@ -275,11 +275,11 @@ impl IntoPy<PyObject> for PyDataFrame {
 macro_rules! convert_duration (
     ($py:expr, $difference:expr, $second_factor:literal) => {
         {
-            let days = $difference / ($second_factor * 8640);
-            let remaining_after_days = $difference % ($second_factor * 8640);
+            let days = $difference / ($second_factor * 86_400);
+            let remaining_after_days = $difference % ($second_factor * 86_400);
             let seconds = remaining_after_days / $second_factor;
             let remaining_after_seconds = remaining_after_days % $second_factor;
-            let microseconds = remaining_after_seconds * (1000000 / $second_factor);
+            let microseconds = remaining_after_seconds * (1_000_000 / $second_factor);
 
             PyDelta::new(
                 $py,
@@ -311,46 +311,46 @@ impl IntoPy<PyObject> for PyAnyValue<'_> {
             AnyValue::Int64(val) => val.into_py(py),
             AnyValue::Float32(val) => val.into_py(py),
             AnyValue::Float64(val) => val.into_py(py),
-            AnyValue::Date(days) => PyDate::from_timestamp(py, (days * 86400).into())
+            AnyValue::Date(days) => PyDate::from_timestamp(py, (days * 86_400).into())
                 .unwrap()
                 .into_py(py),
             // The timezone is ignored - This may lead to wrong conversions
             AnyValue::Datetime(time, unit, _timezone) => match unit {
                 polars::prelude::TimeUnit::Milliseconds => {
-                    PyDateTime::from_timestamp(py, (time / 1000) as f64, None)
+                    PyDateTime::from_timestamp(py, (time / 1_000) as f64, None)
                         .unwrap()
                         .into_py(py)
                 }
                 polars::prelude::TimeUnit::Microseconds => {
-                    PyDateTime::from_timestamp(py, (time / 1000000) as f64, None)
+                    PyDateTime::from_timestamp(py, (time / 1_000_000) as f64, None)
                         .unwrap()
                         .into_py(py)
                 }
                 polars::prelude::TimeUnit::Nanoseconds => {
-                    PyDateTime::from_timestamp(py, (time / 1000000000) as f64, None)
+                    PyDateTime::from_timestamp(py, (time / 1_000_000_000) as f64, None)
                         .unwrap()
                         .into_py(py)
                 }
             },
             AnyValue::Duration(difference, unit) => match unit {
                 polars::prelude::TimeUnit::Milliseconds => {
-                    convert_duration!(py, difference, 1000)
+                    convert_duration!(py, difference, 1_000)
                 }
                 polars::prelude::TimeUnit::Microseconds => {
-                    convert_duration!(py, difference, 1000000)
+                    convert_duration!(py, difference, 1_000_000)
                 }
                 polars::prelude::TimeUnit::Nanoseconds => {
-                    convert_duration!(py, difference, 1000000000)
+                    convert_duration!(py, difference, 1_000_000_000)
                 }
             },
             AnyValue::Time(nanoseconds) => {
-                let hours = nanoseconds / 3600000000000;
-                let remaining_after_hours = nanoseconds % 3600000000000;
-                let minutes = remaining_after_hours / 60000000000;
-                let remaining_after_minutes = remaining_after_hours % 60000000000;
-                let seconds = remaining_after_minutes / 1000000000;
-                let remaining_after_seconds = remaining_after_minutes % 1000000000;
-                let microseconds = remaining_after_seconds / 1000;
+                let hours = nanoseconds / 3_600_000_000_000;
+                let remaining_after_hours = nanoseconds % 3_600_000_000_000;
+                let minutes = remaining_after_hours / 60_000_000_000;
+                let remaining_after_minutes = remaining_after_hours % 60_000_000_000;
+                let seconds = remaining_after_minutes / 1_000_000_000;
+                let remaining_after_seconds = remaining_after_minutes % 1_000_000_000;
+                let microseconds = remaining_after_seconds / 1_000;
 
                 PyTime::new(
                     py,
