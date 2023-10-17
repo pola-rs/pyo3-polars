@@ -183,23 +183,23 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
                 )))
             }
             "date" => {
-                let days = Python::with_gil(|py| {
-                    let datetime = py
-                        .import("datetime")
-                        .expect("Cannot import datetime module");
+                let days: Result<i32, PyErr> = Python::with_gil(|py| {
+                    let datetime = py.import("datetime")?;
 
-                    let epoch = datetime.call_method1("date", (1970, 1, 1)).unwrap();
+                    let epoch = datetime.call_method1("date", (1970, 1, 1))?;
 
-                    ob.call_method1("__sub__", (epoch,))
-                        .expect("Failed to convert Date object")
-                        .getattr("days")
-                        .expect("Failed to convert Date object")
-                        .extract::<i32>()
-                })?;
-                Ok(PyAnyValue(AnyValue::Date(days)))
+                    let days = ob
+                        .call_method1("__sub__", (epoch,))?
+                        .getattr("days")?
+                        .extract::<i32>()?;
+
+                    Ok(days)
+                });
+                Ok(PyAnyValue(AnyValue::Date(days?)))
             }
             "timedelta" => {
-                let seconds = (ob.call_method0("total_seconds")?.extract::<f64>()? * 1_000.0) as i64;
+                let seconds =
+                    (ob.call_method0("total_seconds")?.extract::<f64>()? * 1_000.0) as i64;
                 Ok(PyAnyValue(AnyValue::Duration(
                     seconds,
                     TimeUnit::Milliseconds,
