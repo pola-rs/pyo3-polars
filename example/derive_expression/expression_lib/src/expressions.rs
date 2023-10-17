@@ -1,6 +1,7 @@
 use polars::prelude::*;
 use polars_plan::dsl::FieldsMapper;
 use pyo3_polars::derive::polars_expr;
+use serde::Deserialize;
 use std::fmt::Write;
 
 fn pig_latin_str(value: &str, output: &mut String) {
@@ -58,4 +59,49 @@ fn haversine(inputs: &[Series]) -> PolarsResult<Series> {
         _ => unimplemented!(),
     };
     Ok(out)
+}
+
+/// The `DefaultKwargs` isn't very ergonomic as it doesn't validate any schema.
+/// Provide your own kwargs struct with the proper schema and accept that type
+/// in your plugin expression.
+#[derive(Deserialize)]
+pub struct MyKwargs {
+    float_arg: f64,
+    integer_arg: i64,
+    string_arg: String,
+    boolean_arg: bool,
+}
+
+/// If you want to accept `kwargs`. You define a `kwargs` argument
+/// on the second position in you plugin. You can provide any custom struct that is deserializable
+/// with the pickle protocol (on the rust side).
+#[polars_expr(output_type=Utf8)]
+fn append_kwargs(input: &[Series], kwargs: MyKwargs) -> PolarsResult<Series> {
+    let input = &input[0];
+    let input = input.cast(&DataType::Utf8)?;
+    let ca = input.utf8().unwrap();
+
+    Ok(ca
+        .apply_to_buffer(|val, buf| {
+            write!(
+                buf,
+                "{}-{}-{}-{}-{}",
+                val, kwargs.float_arg, kwargs.integer_arg, kwargs.string_arg, kwargs.boolean_arg
+            )
+            .unwrap()
+        })
+        .into_series())
+}
+
+#[polars_expr(output_type=Boolean)]
+fn is_leap_year(input: &[Series]) -> PolarsResult<Series> {
+    let input = &input[0];
+    let ca = input.date()?;
+
+    let out: BooleanChunked = ca
+        .as_date_iter()
+        .map(|opt_dt| opt_dt.map(|dt| dt.leap_year()))
+        .collect_ca(ca.name());
+
+    Ok(out.into_series())
 }

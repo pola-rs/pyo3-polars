@@ -17,6 +17,30 @@ class Language:
             is_elementwise=True,
         )
 
+    def append_args(
+        self,
+        float_arg: float,
+        integer_arg: int,
+        string_arg: str,
+        boolean_arg: bool,
+    ) -> pl.Expr:
+        """
+        This example shows how arguments other than `Series` can be used.
+        """
+        return self._expr._register_plugin(
+            lib=lib,
+            args=[],
+            kwargs={
+                "float_arg": float_arg,
+                "integer_arg": integer_arg,
+                "string_arg": string_arg,
+                "boolean_arg": boolean_arg,
+            },
+            symbol="append_kwargs",
+            is_elementwise=True,
+        )
+
+
 @pl.api.register_expr_namespace("dist")
 class Distance:
     def __init__(self, expr: pl.Expr):
@@ -38,11 +62,30 @@ class Distance:
             is_elementwise=True,
         )
 
-    def haversine(self, start_lat: IntoExpr, start_long: IntoExpr, end_lat: IntoExpr, end_long: IntoExpr) -> pl.Expr:
+    def haversine(
+        self,
+        start_lat: IntoExpr,
+        start_long: IntoExpr,
+        end_lat: IntoExpr,
+        end_long: IntoExpr,
+    ) -> pl.Expr:
         return self._expr._register_plugin(
             lib=lib,
             args=[start_lat, start_long, end_lat, end_long],
             symbol="haversine",
             is_elementwise=True,
-            cast_to_supertypes=True
+            cast_to_supertypes=True,
+        )
+
+@pl.api.register_expr_namespace("date_util")
+class DateUtil:
+    def __init__(self, expr: pl.Expr):
+        self._expr = expr
+
+
+    def is_leap_year(self) -> pl.Expr:
+        return self._expr._register_plugin(
+            lib=lib,
+            symbol="is_leap_year",
+            is_elementwise=True,
         )

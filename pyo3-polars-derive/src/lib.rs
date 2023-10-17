@@ -3,25 +3,116 @@ mod keywords;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::parse_macro_input;
+use std::sync::atomic::{AtomicBool, Ordering};
+use syn::{parse_macro_input, FnArg};
 
-fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
-    let fn_name = &ast.sig.ident;
+static INIT: AtomicBool = AtomicBool::new(false);
 
+fn insert_error_function() -> proc_macro2::TokenStream {
+    let is_init = INIT.swap(true, Ordering::Relaxed);
+
+    // Only expose the error retrieval function on the first expression.
+    if !is_init {
+        quote!(
+            pub use pyo3_polars::derive::get_last_error_message;
+        )
+    } else {
+        proc_macro2::TokenStream::new()
+    }
+}
+
+fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
     quote!(
-        use pyo3_polars::export::*;
-        // create the outer public function
-        #[no_mangle]
-        pub unsafe extern "C" fn #fn_name (e: *mut polars_ffi::SeriesExport, len: usize) -> polars_ffi::SeriesExport {
-            let inputs = polars_ffi::import_series_buffer(e, len).unwrap();
+
+            let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
+
+            let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
+                    Ok(value) => value,
+                    Err(err) => {
+                        pyo3_polars::derive::_update_last_error(err);
+                        return;
+                    }
+            };
 
             // define the function
             #ast
 
             // call the function
-            let output: polars_core::prelude::Series = #fn_name(&inputs).unwrap();
-            let out = polars_ffi::export_series(&output);
-            out
+        let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, kwargs);
+
+    )
+}
+
+fn quote_call_no_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    quote!(
+            // define the function
+            #ast
+            // call the function
+            let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs);
+    )
+}
+
+fn quote_process_results() -> proc_macro2::TokenStream {
+    quote!(match result {
+        Ok(out) => {
+            // Update return value.
+            *return_value = polars_ffi::export_series(&out);
+        }
+        Err(err) => {
+            // Set latest error, but leave return value in empty state.
+            pyo3_polars::derive::_update_last_error(err);
+        }
+    })
+}
+
+fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
+    // count how often the user define a kwargs argument.
+    let n_kwargs = ast
+        .sig
+        .inputs
+        .iter()
+        .filter(|fn_arg| {
+            if let FnArg::Typed(pat) = fn_arg {
+                if let syn::Pat::Ident(pat) = pat.pat.as_ref() {
+                    pat.ident.to_string() == "kwargs"
+                } else {
+                    false
+                }
+            } else {
+                true
+            }
+        })
+        .count();
+
+    let fn_name = &ast.sig.ident;
+    let error_msg_fn = insert_error_function();
+
+    let quote_call = match n_kwargs {
+        0 => quote_call_no_kwargs(&ast, fn_name),
+        1 => quote_call_kwargs(&ast, fn_name),
+        _ => unreachable!(), // arguments are unique
+    };
+    let quote_process_result = quote_process_results();
+
+    quote!(
+        use pyo3_polars::export::*;
+
+        #error_msg_fn
+
+        // create the outer public function
+        #[no_mangle]
+        pub unsafe extern "C" fn #fn_name (
+            e: *mut polars_ffi::SeriesExport,
+            input_len: usize,
+            kwargs_ptr: *const u8,
+            kwargs_len: usize,
+            return_value: *mut polars_ffi::SeriesExport
+        )  {
+            let inputs = polars_ffi::import_series_buffer(e, input_len).unwrap();
+
+            #quote_call
+
+            #quote_process_result
         }
     )
 }
@@ -42,18 +133,33 @@ fn get_inputs() -> proc_macro2::TokenStream {
 }
 
 fn create_field_function(
-    fn_name: &syn::Ident, 
-    dtype_fn_name: &syn::Ident
+    fn_name: &syn::Ident,
+    dtype_fn_name: &syn::Ident,
 ) -> proc_macro2::TokenStream {
     let map_field_name = get_field_name(fn_name);
     let inputs = get_inputs();
 
     quote! (
         #[no_mangle]
-        pub unsafe extern "C" fn #map_field_name(field: *mut polars_core::export::arrow::ffi::ArrowSchema, len: usize) -> polars_core::export::arrow::ffi::ArrowSchema {
+        pub unsafe extern "C" fn #map_field_name(
+            field: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            len: usize,
+            return_value: *mut polars_core::export::arrow::ffi::ArrowSchema,
+        ) {
             #inputs;
-            let out = #dtype_fn_name(&inputs).unwrap();
-            polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow())
+
+            let result = #dtype_fn_name(&inputs);
+
+            match result {
+                Ok(out) => {
+                    let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+                    *return_value = out;
+                },
+                Err(err) => {
+                    // Set latest error, but leave return value in empty state.
+                    pyo3_polars::derive::_update_last_error(err);
+                }
+            }
         }
     )
 }
@@ -67,13 +173,18 @@ fn create_field_function_from_with_dtype(
 
     quote! (
         #[no_mangle]
-        pub unsafe extern "C" fn #map_field_name(field: *mut polars_core::export::arrow::ffi::ArrowSchema, len: usize) -> polars_core::export::arrow::ffi::ArrowSchema {
+        pub unsafe extern "C" fn #map_field_name(
+            field: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            len: usize,
+            return_value: *mut polars_core::export::arrow::ffi::ArrowSchema
+        ) {
             #inputs
 
             let mapper = polars_plan::dsl::FieldsMapper::new(&inputs);
             let dtype = polars_core::datatypes::DataType::#dtype;
             let out = mapper.with_dtype(dtype).unwrap();
-            polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow())
+            let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+            *return_value = out;
         }
     )
 }
