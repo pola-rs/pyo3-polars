@@ -1,15 +1,11 @@
 mod parallel_jaccard_mod;
 
-use pyo3::prelude::*;
-use pyo3_polars::{
-    PyDataFrame,
-    PyLazyFrame,
-};
-use pyo3_polars::error::PyPolarsErr;
 use polars::prelude::*;
 use polars_lazy::frame::IntoLazy;
 use polars_lazy::prelude::LazyFrame;
-
+use pyo3::prelude::*;
+use pyo3_polars::error::PyPolarsErr;
+use pyo3_polars::{PyDataFrame, PyLazyFrame};
 
 #[pyfunction]
 fn parallel_jaccard(pydf: PyDataFrame, col_a: &str, col_b: &str) -> PyResult<PyDataFrame> {
@@ -21,7 +17,8 @@ fn parallel_jaccard(pydf: PyDataFrame, col_a: &str, col_b: &str) -> PyResult<PyD
 #[pyfunction]
 fn lazy_parallel_jaccard(pydf: PyLazyFrame, col_a: &str, col_b: &str) -> PyResult<PyLazyFrame> {
     let df: LazyFrame = pydf.into();
-    let df = parallel_jaccard_mod::parallel_jaccard(df.collect().unwrap(), col_a, col_b).map_err(PyPolarsErr::from)?;
+    let df = parallel_jaccard_mod::parallel_jaccard(df.collect().unwrap(), col_a, col_b)
+        .map_err(PyPolarsErr::from)?;
     Ok(PyLazyFrame(df.lazy()))
 }
 

@@ -1,7 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
 use polars::prelude::PolarsError;
-use polars_core::error::ArrowError;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyIOError, PyIndexError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
@@ -13,8 +12,6 @@ pub enum PyPolarsErr {
     Polars(#[from] PolarsError),
     #[error("{0}")]
     Other(String),
-    #[error(transparent)]
-    Arrow(#[from] ArrowError),
 }
 
 impl std::convert::From<PyPolarsErr> for PyErr {
@@ -31,7 +28,6 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                 PolarsError::Io(err) => PyIOError::new_err(err.to_string()),
                 PolarsError::OutOfBounds(err) => PyIndexError::new_err(err.to_string()),
                 PolarsError::InvalidOperation(err) => PyValueError::new_err(err.to_string()),
-                PolarsError::ArrowError(err) => ArrowErrorException::new_err(format!("{:?}", err)),
                 PolarsError::Duplicate(err) => DuplicateError::new_err(err.to_string()),
                 PolarsError::ColumnNotFound(err) => ColumnNotFound::new_err(err.to_string()),
                 PolarsError::SchemaFieldNotFound(err) => {
@@ -44,7 +40,6 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                     StringCacheMismatchError::new_err(err.to_string())
                 }
             },
-            Arrow(err) => ArrowErrorException::new_err(format!("{:?}", err)),
             _ => default(),
         }
     }
@@ -56,7 +51,6 @@ impl Debug for PyPolarsErr {
         match self {
             Polars(err) => write!(f, "{:?}", err),
             Other(err) => write!(f, "BindingsError: {:?}", err),
-            Arrow(err) => write!(f, "{:?}", err),
         }
     }
 }
@@ -66,7 +60,6 @@ create_exception!(exceptions, SchemaFieldNotFound, PyException);
 create_exception!(exceptions, StructFieldNotFound, PyException);
 create_exception!(exceptions, ComputeError, PyException);
 create_exception!(exceptions, NoDataError, PyException);
-create_exception!(exceptions, ArrowErrorException, PyException);
 create_exception!(exceptions, ShapeError, PyException);
 create_exception!(exceptions, SchemaError, PyException);
 create_exception!(exceptions, DuplicateError, PyException);
