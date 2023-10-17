@@ -4,7 +4,7 @@ mod keywords;
 use proc_macro::TokenStream;
 use quote::quote;
 use std::sync::atomic::{AtomicBool, Ordering};
-use syn::parse_macro_input;
+use syn::{parse_macro_input, FnArg};
 
 static INIT: AtomicBool = AtomicBool::new(false);
 
@@ -21,9 +21,78 @@ fn insert_error_function() -> proc_macro2::TokenStream {
     }
 }
 
+fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    quote!(
+
+            let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
+
+            let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
+                    Ok(value) => value,
+                    Err(err) => {
+                        pyo3_polars::derive::_update_last_error(err);
+                        return;
+                    }
+            };
+
+            // define the function
+            #ast
+
+            // call the function
+        let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, kwargs);
+
+    )
+}
+
+fn quote_call_no_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    quote!(
+            // define the function
+            #ast
+            // call the function
+            let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs);
+    )
+}
+
+fn quote_process_results() -> proc_macro2::TokenStream {
+    quote!(match result {
+        Ok(out) => {
+            // Update return value.
+            *return_value = polars_ffi::export_series(&out);
+        }
+        Err(err) => {
+            // Set latest error, but leave return value in empty state.
+            pyo3_polars::derive::_update_last_error(err);
+        }
+    })
+}
+
 fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
+    // count how often the user define a kwargs argument.
+    let n_kwargs = ast
+        .sig
+        .inputs
+        .iter()
+        .filter(|fn_arg| {
+            if let FnArg::Typed(pat) = fn_arg {
+                if let syn::Pat::Ident(pat) = pat.pat.as_ref() {
+                    pat.ident.to_string() == "kwargs"
+                } else {
+                    false
+                }
+            } else {
+                true
+            }
+        })
+        .count();
+
     let fn_name = &ast.sig.ident;
     let error_msg_fn = insert_error_function();
+
+    let quote_call = match n_kwargs {
+        0 => quote_call_no_kwargs(&ast, fn_name),
+        1 => quote_call_kwargs(&ast, fn_name),
+        _ => panic!("expected 0 or 1 kwargs, got {}", n_kwargs),
+    };
+    let quote_process_result = quote_process_results();
 
     quote!(
         use pyo3_polars::export::*;
@@ -41,35 +110,9 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
         )  {
             let inputs = polars_ffi::import_series_buffer(e, input_len).unwrap();
 
-            let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
+            #quote_call
 
-            let kwargs = if kwargs.is_empty() {
-                ::std::option::Option::None
-            } else {
-                match pyo3_polars::derive::_parse_kwargs(kwargs)  {
-                    Ok(value) => Some(value),
-                    Err(err) => {
-                        pyo3_polars::derive::_update_last_error(err);
-                        return;
-                    }
-                }
-            };
-
-            // define the function
-            #ast
-
-            // call the function
-            let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, kwargs);
-            match result {
-                Ok(out) => {
-                    // Update return value.
-                    *return_value =  polars_ffi::export_series(&out);
-                },
-                Err(err) => {
-                    // Set latest error, but leave return value in empty state.
-                    pyo3_polars::derive::_update_last_error(err);
-                }
-            }
+            #quote_process_result
         }
     )
 }
