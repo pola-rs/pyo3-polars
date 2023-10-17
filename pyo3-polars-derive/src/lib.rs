@@ -90,7 +90,7 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     let quote_call = match n_kwargs {
         0 => quote_call_no_kwargs(&ast, fn_name),
         1 => quote_call_kwargs(&ast, fn_name),
-        _ => panic!("expected 0 or 1 kwargs, got {}", n_kwargs),
+        _ => unreachable!(), // arguments are unique
     };
     let quote_process_result = quote_process_results();
 
