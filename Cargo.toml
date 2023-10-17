@@ -8,11 +8,11 @@ members = [
 ]
 
 [workspace.dependencies]
-#polars = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
-#polars-core = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
-#polars-ffi = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
-#polars-plan = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-feautres = false }
-#polars-lazy = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
+# polars = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
+# polars-core = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
+# polars-ffi = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
+# polars-plan = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-feautres = false }
+# polars-lazy = { git = "https://github.com/pola-rs/polars", rev = "5d48cc800bc9c71fe6d4ff97b96d7fed4601793b", version = "0.33.2", default-features = false }
 
 polars = { path = "../polars/crates/polars", version = "0.33.2", default-features = false }
 polars-core = { path = "../polars/crates/polars-core", version = "0.33.2", default-features = false }
