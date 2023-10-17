@@ -169,8 +169,6 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
             .getattr("__name__")?
             .extract::<&str>()?;
 
-        println!("{}", object_type);
-
         match object_type {
             "float" => Ok(PyAnyValue(AnyValue::Float64(ob.extract::<f64>()?))),
             "int" => Ok(PyAnyValue(AnyValue::Int64(ob.extract::<i64>()?))),
