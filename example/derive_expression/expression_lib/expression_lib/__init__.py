@@ -76,3 +76,16 @@ class Distance:
             is_elementwise=True,
             cast_to_supertypes=True,
         )
+
+@pl.api.register_expr_namespace("date_util")
+class DateUtil:
+    def __init__(self, expr: pl.Expr):
+        self._expr = expr
+
+
+    def is_leap_year(self) -> pl.Expr:
+        return self._expr._register_plugin(
+            lib=lib,
+            symbol="is_leap_year",
+            is_elementwise=True,
+        )
