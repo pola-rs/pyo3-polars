@@ -1,4 +1,4 @@
-//! This crate offers [`PySeries`], [`PyDataFrame`] and [`PyAnyValue`] which are simple wrapper around `Series`, `DataFrame` and `PyAnyValue`. The
+//! This crate offers [`PySeries`], [`PyDataFrame`] and [`PyAnyValue`] which are simple wrapper around `Series`, `DataFrame` and `AnyValue`. The
 //! advantage of these wrappers is that they can be converted to and from python as they implement `FromPyObject` and `IntoPy`.
 //!
 //! # Example
@@ -68,7 +68,7 @@ pub struct PyDataFrame(pub DataFrame);
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
-/// A wrapper around a [`AnyValue`] that can be converted to and from python with `pyo3`.
+/// A wrapper around [`AnyValue`] that can be converted to and from python with `pyo3`.
 pub struct PyAnyValue<'a>(pub AnyValue<'a>);
 
 #[cfg(feature = "lazy")]
