@@ -90,3 +90,17 @@ fn append_kwargs(input: &[Series], kwargs: Option<MyKwargs>) -> PolarsResult<Ser
         })
         .into_series())
 }
+
+#[polars_expr(output_type=Boolean)]
+fn is_leap_year(input: &[Series], _kwargs: Option<DefaultKwargs>) -> PolarsResult<Series> {
+    let input = &input[0];
+    let ca = input.date()?;
+
+    let out: BooleanChunked = ca.as_date_iter().map(|opt_dt| {
+        opt_dt.map(|dt| {
+            dt.leap_year()
+        })
+    }).collect_ca(ca.name());
+
+    Ok(out.into_series())
+}
