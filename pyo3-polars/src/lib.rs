@@ -175,7 +175,7 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
             "str" => Ok(PyAnyValue(AnyValue::Utf8(ob.extract::<&str>()?))),
             "bool" => Ok(PyAnyValue(AnyValue::Boolean(ob.extract::<bool>()?))),
             "datetime" => {
-                let timestamp = (ob.call_method0("timestamp")?.extract::<f64>()? * 1_000.0) as i64;
+                let timestamp = (ob.call_method0("timestamp")?.extract::<f64>()? as i64) * 1_000;
                 Ok(PyAnyValue(AnyValue::Datetime(
                     timestamp,
                     TimeUnit::Milliseconds,
@@ -198,8 +198,7 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
                 Ok(PyAnyValue(AnyValue::Date(days?)))
             }
             "timedelta" => {
-                let seconds =
-                    (ob.call_method0("total_seconds")?.extract::<f64>()? * 1_000.0) as i64;
+                let seconds = (ob.call_method0("total_seconds")?.extract::<f64>()? as i64) * 1_000;
                 Ok(PyAnyValue(AnyValue::Duration(
                     seconds,
                     TimeUnit::Milliseconds,
@@ -317,17 +316,17 @@ impl IntoPy<PyObject> for PyAnyValue<'_> {
             // The timezone is ignored - This may lead to wrong conversions
             AnyValue::Datetime(time, unit, _timezone) => match unit {
                 polars::prelude::TimeUnit::Milliseconds => {
-                    PyDateTime::from_timestamp(py, (time / 1_000) as f64, None)
+                    PyDateTime::from_timestamp(py, time as f64 / 1_000.0, None)
                         .unwrap()
                         .into_py(py)
                 }
                 polars::prelude::TimeUnit::Microseconds => {
-                    PyDateTime::from_timestamp(py, (time / 1_000_000) as f64, None)
+                    PyDateTime::from_timestamp(py, time as f64 / 1_000_000.0, None)
                         .unwrap()
                         .into_py(py)
                 }
                 polars::prelude::TimeUnit::Nanoseconds => {
-                    PyDateTime::from_timestamp(py, (time / 1_000_000_000) as f64, None)
+                    PyDateTime::from_timestamp(py, time as f64 / 1_000_000_000.0, None)
                         .unwrap()
                         .into_py(py)
                 }
