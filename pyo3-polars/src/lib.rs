@@ -175,7 +175,7 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
             "str" => Ok(PyAnyValue(AnyValue::Utf8(ob.extract::<&str>()?))),
             "bool" => Ok(PyAnyValue(AnyValue::Boolean(ob.extract::<bool>()?))),
             "datetime" => {
-                let timestamp = (ob.call_method0("timestamp")?.extract::<f64>()? as i64) * 1_000;
+                let timestamp = (ob.call_method0("timestamp")?.extract::<f64>()? * 1_000.0) as i64;
                 Ok(PyAnyValue(AnyValue::Datetime(
                     timestamp,
                     TimeUnit::Milliseconds,
@@ -198,7 +198,8 @@ impl<'a> FromPyObject<'a> for PyAnyValue<'a> {
                 Ok(PyAnyValue(AnyValue::Date(days?)))
             }
             "timedelta" => {
-                let seconds = (ob.call_method0("total_seconds")?.extract::<f64>()? as i64) * 1_000;
+                let seconds =
+                    (ob.call_method0("total_seconds")?.extract::<f64>()? * 1_000.0) as i64;
                 Ok(PyAnyValue(AnyValue::Duration(
                     seconds,
                     TimeUnit::Milliseconds,
