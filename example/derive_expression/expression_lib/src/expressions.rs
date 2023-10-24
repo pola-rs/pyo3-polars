@@ -37,7 +37,7 @@ fn haversine_output(input_fields: &[Field]) -> PolarsResult<Field> {
     FieldsMapper::new(input_fields).map_to_float_dtype()
 }
 
-#[polars_expr(type_func=haversine_output)]
+#[polars_expr(output_type_func=haversine_output)]
 fn haversine(inputs: &[Series]) -> PolarsResult<Series> {
     let out = match inputs[0].dtype() {
         DataType::Float32 => {
