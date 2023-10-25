@@ -13,21 +13,35 @@ The idea is that you define an expression in another Rust crate with a proc_macr
 That macro can have the following attributes:
 
 - `output_type` -> to define the output type of that expression
-- `type_func` -> to define a function that computes the output type based on input types.
+- `output_type_func` -> to define a function that computes the output type based on input types.
 
 Here is an example of a `String` conversion expression that converts any string to [pig latin](https://en.wikipedia.org/wiki/Pig_Latin):
 
 ```rust
-fn pig_latin_str(value: &str, output: &mut String) {
+fn pig_latin_str(value: &str, capitalize: bool, output: &mut String) {
     if let Some(first_char) = value.chars().next() {
-        write!(output, "{}{}ay", &value[1..], first_char).unwrap()
+        if capitalize {
+            for c in value.chars().skip(1).map(|char| char.to_uppercase()) {
+                write!(output, "{c}").unwrap()
+            }
+            write!(output, "AY").unwrap()
+        } else {
+            let offset = first_char.len_utf8();
+            write!(output, "{}{}ay", &value[offset..], first_char).unwrap()
+        }
     }
 }
 
+#[derive(Deserialize)]
+struct PigLatinKwargs {
+    capitalize: bool,
+}
+
 #[polars_expr(output_type=Utf8)]
-fn pig_latinnify(inputs: &[Series]) -> PolarsResult<Series> {
+fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
     let ca = inputs[0].utf8()?;
-    let out: Utf8Chunked = ca.apply_to_buffer(pig_latin_str);
+    let out: Utf8Chunked =
+        ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
 }
 ```
@@ -46,11 +60,12 @@ class Language:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
 
-    def pig_latinnify(self) -> pl.Expr:
+    def pig_latinnify(self, capatilize: bool = False) -> pl.Expr:
         return self._expr._register_plugin(
             lib=lib,
             symbol="pig_latinnify",
             is_elementwise=True,
+            kwargs={"capitalize": capatilize}
         )
 ```
 
@@ -58,7 +73,7 @@ Compile/ship and then it is ready to use:
 
 ```python
 import polars as pl
-from expression_lib import Language
+import expression_lib
 
 df = pl.DataFrame({
     "names": ["Richard", "Alice", "Bob"],

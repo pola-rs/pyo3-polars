@@ -10,11 +10,12 @@ class Language:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
 
-    def pig_latinnify(self) -> pl.Expr:
+    def pig_latinnify(self, capitalize: bool = False) -> pl.Expr:
         return self._expr._register_plugin(
             lib=lib,
             symbol="pig_latinnify",
             is_elementwise=True,
+            kwargs={"capitalize": capitalize},
         )
 
     def append_args(
@@ -77,11 +78,11 @@ class Distance:
             cast_to_supertypes=True,
         )
 
+
 @pl.api.register_expr_namespace("date_util")
 class DateUtil:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
-
 
     def is_leap_year(self) -> pl.Expr:
         return self._expr._register_plugin(
