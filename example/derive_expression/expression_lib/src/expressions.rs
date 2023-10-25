@@ -4,16 +4,30 @@ use pyo3_polars::derive::polars_expr;
 use serde::Deserialize;
 use std::fmt::Write;
 
-fn pig_latin_str(value: &str, output: &mut String) {
+#[derive(Deserialize)]
+struct PigLatinKwargs {
+    capitalize: bool,
+}
+
+fn pig_latin_str(value: &str, capitalize: bool, output: &mut String) {
     if let Some(first_char) = value.chars().next() {
-        write!(output, "{}{}ay", &value[1..], first_char).unwrap()
+        if capitalize {
+            for c in value.chars().skip(1).map(|char| char.to_uppercase()) {
+                write!(output, "{c}").unwrap()
+            }
+            write!(output, "AY").unwrap()
+        } else {
+            let offset = first_char.len_utf8();
+            write!(output, "{}{}ay", &value[offset..], first_char).unwrap()
+        }
     }
 }
 
 #[polars_expr(output_type=Utf8)]
-fn pig_latinnify(inputs: &[Series]) -> PolarsResult<Series> {
+fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
     let ca = inputs[0].utf8()?;
-    let out: Utf8Chunked = ca.apply_to_buffer(pig_latin_str);
+    let out: Utf8Chunked =
+        ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
 }
 
