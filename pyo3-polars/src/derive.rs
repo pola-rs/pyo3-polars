@@ -24,6 +24,12 @@ pub fn _update_last_error(err: PolarsError) {
     LAST_ERROR.with(|prev| *prev.borrow_mut() = msg)
 }
 
+pub fn _set_panic() {
+    let msg = format!("PANIC");
+    let msg = CString::new(msg).unwrap();
+    LAST_ERROR.with(|prev| *prev.borrow_mut() = msg)
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn get_last_error_message() -> *const std::os::raw::c_char {
     LAST_ERROR.with(|prev| prev.borrow_mut().as_ptr())
