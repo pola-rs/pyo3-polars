@@ -66,9 +66,6 @@ fn quote_process_results() -> proc_macro2::TokenStream {
     })
 }
 
-struct CatchPanic<T>(pub T);
-impl<T> UnwindSafe for CatchPanic<T> {}
-
 fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     // count how often the user define a kwargs argument.
     let n_kwargs = ast
