@@ -3,6 +3,7 @@ mod keywords;
 
 use proc_macro::TokenStream;
 use quote::quote;
+use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use syn::{parse_macro_input, FnArg};
 
@@ -108,11 +109,21 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
             kwargs_len: usize,
             return_value: *mut polars_ffi::SeriesExport
         )  {
-            let inputs = polars_ffi::import_series_buffer(e, input_len).unwrap();
+            let panic_result = std::panic::catch_unwind(move || {
+                let inputs = polars_ffi::import_series_buffer(e, input_len).unwrap();
 
-            #quote_call
+                #quote_call
 
-            #quote_process_result
+                #quote_process_result
+                ()
+            });
+
+            if panic_result.is_err() {
+                // Set latest to panic and nullify return value;
+                *return_value = polars_ffi::SeriesExport::empty();
+                pyo3_polars::derive::_set_panic();
+            }
+
         }
     )
 }
@@ -146,19 +157,27 @@ fn create_field_function(
             len: usize,
             return_value: *mut polars_core::export::arrow::ffi::ArrowSchema,
         ) {
-            #inputs;
+            let panic_result = std::panic::catch_unwind(move || {
+                #inputs;
 
-            let result = #dtype_fn_name(&inputs);
+                let result = #dtype_fn_name(&inputs);
 
-            match result {
-                Ok(out) => {
-                    let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
-                    *return_value = out;
-                },
-                Err(err) => {
-                    // Set latest error, but leave return value in empty state.
-                    pyo3_polars::derive::_update_last_error(err);
+                match result {
+                    Ok(out) => {
+                        let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+                        *return_value = out;
+                    },
+                    Err(err) => {
+                        // Set latest error, but leave return value in empty state.
+                        pyo3_polars::derive::_update_last_error(err);
+                    }
                 }
+            });
+
+            if panic_result.is_err() {
+                // Set latest to panic and nullify return value;
+                *return_value = polars_core::export::arrow::ffi::ArrowSchema::empty();
+                pyo3_polars::derive::_set_panic();
             }
         }
     )
