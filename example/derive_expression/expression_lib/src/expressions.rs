@@ -1,9 +1,9 @@
 use polars::prelude::*;
 use polars_plan::dsl::FieldsMapper;
 use pyo3_polars::derive::{polars_expr, CallerContext};
+use pyo3_polars::export::polars_core::POOL;
 use serde::Deserialize;
 use std::fmt::Write;
-use pyo3_polars::export::polars_core::POOL;
 
 #[derive(Deserialize)]
 struct PigLatinKwargs {
@@ -54,7 +54,11 @@ fn split_offsets(len: usize, n: usize) -> Vec<(usize, usize)> {
 
 /// This expression will run in parallel if the `context` allows it.
 #[polars_expr(output_type=Utf8)]
-fn pig_latinnify_with_paralellism(inputs: &[Series], context: CallerContext, kwargs: PigLatinKwargs) -> PolarsResult<Series> {
+fn pig_latinnify_with_paralellism(
+    inputs: &[Series],
+    context: CallerContext,
+    kwargs: PigLatinKwargs,
+) -> PolarsResult<Series> {
     use rayon::prelude::*;
     let ca = inputs[0].utf8()?;
 
@@ -67,7 +71,9 @@ fn pig_latinnify_with_paralellism(inputs: &[Series], context: CallerContext, kwa
                 .into_par_iter()
                 .map(|(offset, len)| {
                     let sliced = ca.slice(offset as i64, len);
-                    let out = sliced.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+                    let out = sliced.apply_to_buffer(|value, output| {
+                        pig_latin_str(value, kwargs.capitalize, output)
+                    });
                     out.downcast_iter().cloned().collect::<Vec<_>>()
                 })
                 .collect();

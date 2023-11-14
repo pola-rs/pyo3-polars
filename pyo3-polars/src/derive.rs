@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::ffi::CString;
 
 /// Gives the caller extra information on how to execute the expression.
-pub use polars_ffi::CallerContext;
+pub use polars_ffi::version_0::CallerContext;
 
 /// A default opaque kwargs type.
 pub type DefaultKwargs = serde_pickle::Value;
