@@ -1,8 +1,9 @@
 use polars::prelude::*;
 use polars_plan::dsl::FieldsMapper;
-use pyo3_polars::derive::polars_expr;
+use pyo3_polars::derive::{polars_expr, CallerContext};
 use serde::Deserialize;
 use std::fmt::Write;
+use pyo3_polars::export::polars_core::POOL;
 
 #[derive(Deserialize)]
 struct PigLatinKwargs {
@@ -29,6 +30,55 @@ fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Seri
     let out: Utf8Chunked =
         ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
+}
+
+fn split_offsets(len: usize, n: usize) -> Vec<(usize, usize)> {
+    if n == 1 {
+        vec![(0, len)]
+    } else {
+        let chunk_size = len / n;
+
+        (0..n)
+            .map(|partition| {
+                let offset = partition * chunk_size;
+                let len = if partition == (n - 1) {
+                    len - offset
+                } else {
+                    chunk_size
+                };
+                (partition * chunk_size, len)
+            })
+            .collect()
+    }
+}
+
+/// This expression will run in parallel if the `context` allows it.
+#[polars_expr(output_type=Utf8)]
+fn pig_latinnify_with_paralellism(inputs: &[Series], context: CallerContext, kwargs: PigLatinKwargs) -> PolarsResult<Series> {
+    use rayon::prelude::*;
+    let ca = inputs[0].utf8()?;
+
+    if !context.parallelized {
+        POOL.install(|| {
+            let n_threads = POOL.current_num_threads();
+            let splits = split_offsets(ca.len(), n_threads);
+
+            let chunks: Vec<_> = splits
+                .into_par_iter()
+                .map(|(offset, len)| {
+                    let sliced = ca.slice(offset as i64, len);
+                    let out = sliced.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+                    out.downcast_iter().cloned().collect::<Vec<_>>()
+                })
+                .collect();
+
+            Ok(Utf8Chunked::from_chunk_iter(ca.name(), chunks.into_iter().flatten()).into_series())
+        })
+    } else {
+        let out: Utf8Chunked =
+            ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+        Ok(out.into_series())
+    }
 }
 
 #[polars_expr(output_type=Float64)]

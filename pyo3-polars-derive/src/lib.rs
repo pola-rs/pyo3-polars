@@ -3,7 +3,6 @@ mod keywords;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use syn::{parse_macro_input, FnArg};
 
@@ -24,7 +23,6 @@ fn insert_error_function() -> proc_macro2::TokenStream {
 
 fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
     quote!(
-
             let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
 
             let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
@@ -41,6 +39,40 @@ fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::To
             // call the function
         let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, kwargs);
 
+    )
+}
+
+fn quote_call_context(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    quote!(
+            let context = *context;
+
+            // define the function
+            #ast
+
+            // call the function
+        let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, context);
+    )
+}
+
+fn quote_call_context_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    quote!(
+            let context = *context;
+
+            let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
+
+            let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
+                    Ok(value) => value,
+                    Err(err) => {
+                        pyo3_polars::derive::_update_last_error(err);
+                        return;
+                    }
+            };
+
+            // define the function
+            #ast
+
+            // call the function
+        let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, context, kwargs);
     )
 }
 
@@ -68,31 +100,43 @@ fn quote_process_results() -> proc_macro2::TokenStream {
 
 fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     // count how often the user define a kwargs argument.
-    let n_kwargs = ast
+    let args  = ast
         .sig
         .inputs
         .iter()
-        .filter(|fn_arg| {
+        .skip(1)
+        .map(| fn_arg| {
             if let FnArg::Typed(pat) = fn_arg {
                 if let syn::Pat::Ident(pat) = pat.pat.as_ref() {
-                    pat.ident.to_string() == "kwargs"
+                    pat.ident.to_string()
                 } else {
-                    false
+                    panic!("expected an argument")
                 }
             } else {
-                true
+                panic!("expected a type argument")
             }
         })
-        .count();
+        .collect::<Vec<_>>();
 
     let fn_name = &ast.sig.ident;
     let error_msg_fn = insert_error_function();
 
-    let quote_call = match n_kwargs {
+    // Get the tokenstream of the call logic.
+    let quote_call = match args.len() {
         0 => quote_call_no_kwargs(&ast, fn_name),
-        1 => quote_call_kwargs(&ast, fn_name),
-        _ => unreachable!(), // arguments are unique
+        1 => match args[0].as_str() {
+            "kwargs" => quote_call_kwargs(&ast, fn_name),
+            "context" => quote_call_context(&ast, fn_name),
+            a => panic!("didn't expect argument {}", a)
+        },
+        2 => match (args[0].as_str(), args[1].as_str()) {
+            ("context", "kwargs") => quote_call_context_kwargs(&ast, fn_name),
+            ("kwargs", "context") => panic!("'kwargs', 'context' order should be reversed"),
+            (a, b) => panic!("didn't expect arguments {}, {}", a, b)
+        }
+        _ => panic!("didn't expect so many arguments")
     };
+
     let quote_process_result = quote_process_results();
 
     quote!(
@@ -107,7 +151,8 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
             input_len: usize,
             kwargs_ptr: *const u8,
             kwargs_len: usize,
-            return_value: *mut polars_ffi::SeriesExport
+            return_value: *mut polars_ffi::SeriesExport,
+            context: *mut polars_ffi::CallerContext
         )  {
             let panic_result = std::panic::catch_unwind(move || {
                 let inputs = polars_ffi::import_series_buffer(e, input_len).unwrap();
