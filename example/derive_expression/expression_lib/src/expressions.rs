@@ -62,7 +62,11 @@ fn pig_latinnify_with_paralellism(
     use rayon::prelude::*;
     let ca = inputs[0].utf8()?;
 
-    if !context.parallelized {
+    if context.parallel() {
+        let out: Utf8Chunked =
+            ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+        Ok(out.into_series())
+    } else {
         POOL.install(|| {
             let n_threads = POOL.current_num_threads();
             let splits = split_offsets(ca.len(), n_threads);
@@ -80,10 +84,6 @@ fn pig_latinnify_with_paralellism(
 
             Ok(Utf8Chunked::from_chunk_iter(ca.name(), chunks.into_iter().flatten()).into_series())
         })
-    } else {
-        let out: Utf8Chunked =
-            ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
-        Ok(out.into_series())
     }
 }
 
@@ -174,4 +174,9 @@ fn is_leap_year(input: &[Series]) -> PolarsResult<Series> {
         .collect_ca(ca.name());
 
     Ok(out.into_series())
+}
+
+#[polars_expr(output_type=Boolean)]
+fn panic(_input: &[Series]) -> PolarsResult<Series> {
+    todo!()
 }

@@ -14,7 +14,7 @@ fn insert_error_function() -> proc_macro2::TokenStream {
     // Only expose the error retrieval function on the first expression.
     if !is_init {
         quote!(
-            pub use pyo3_polars::derive::get_last_error_message;
+            pub use pyo3_polars::derive::_polars_plugin_get_last_error_message;
         )
     } else {
         proc_macro2::TokenStream::new()
@@ -165,8 +165,7 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
             });
 
             if panic_result.is_err() {
-                // Set latest to panic and nullify return value;
-                *return_value = polars_ffi::version_0::SeriesExport::empty();
+                // Set latest to panic;
                 pyo3_polars::derive::_set_panic();
             }
 
@@ -177,9 +176,8 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
 fn get_field_function_name(fn_name: &syn::Ident) -> syn::Ident {
     syn::Ident::new(
         &format!(
-            "__polars_field_{}_v{}",
+            "_polars_plugin_field_{}",
             fn_name,
-            polars_ffi::get_version().0
         ),
         fn_name.span(),
     )
@@ -187,7 +185,7 @@ fn get_field_function_name(fn_name: &syn::Ident) -> syn::Ident {
 
 fn get_expression_function_name(fn_name: &syn::Ident) -> syn::Ident {
     syn::Ident::new(
-        &format!("{}_v{}", fn_name, polars_ffi::get_version().0),
+        &format!("_polars_plugin_{}", fn_name),
         fn_name.span(),
     )
 }
@@ -235,8 +233,7 @@ fn create_field_function(
             });
 
             if panic_result.is_err() {
-                // Set latest to panic and nullify return value;
-                *return_value = polars_core::export::arrow::ffi::ArrowSchema::empty();
+                // Set latest to panic;
                 pyo3_polars::derive::_set_panic();
             }
         }

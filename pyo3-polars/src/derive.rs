@@ -35,12 +35,12 @@ pub fn _set_panic() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn get_last_error_message() -> *const std::os::raw::c_char {
+pub unsafe extern "C" fn _polars_plugin_get_last_error_message() -> *const std::os::raw::c_char {
     LAST_ERROR.with(|prev| prev.borrow_mut().as_ptr())
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn get_version() -> u32 {
+pub unsafe extern "C" fn _polars_plugin_get_version() -> u32 {
     let (major, minor) = polars_ffi::get_version();
     // Stack bits together
     ((major as u32) << 16) + minor as u32
