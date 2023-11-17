@@ -3,7 +3,6 @@ mod keywords;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use syn::{parse_macro_input, FnArg};
 
@@ -15,7 +14,7 @@ fn insert_error_function() -> proc_macro2::TokenStream {
     // Only expose the error retrieval function on the first expression.
     if !is_init {
         quote!(
-            pub use pyo3_polars::derive::get_last_error_message;
+            pub use pyo3_polars::derive::_polars_plugin_get_last_error_message;
         )
     } else {
         proc_macro2::TokenStream::new()
@@ -24,7 +23,6 @@ fn insert_error_function() -> proc_macro2::TokenStream {
 
 fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
     quote!(
-
             let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
 
             let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
@@ -44,6 +42,40 @@ fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::To
     )
 }
 
+fn quote_call_context(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    quote!(
+            let context = *context;
+
+            // define the function
+            #ast
+
+            // call the function
+        let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, context);
+    )
+}
+
+fn quote_call_context_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    quote!(
+            let context = *context;
+
+            let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
+
+            let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
+                    Ok(value) => value,
+                    Err(err) => {
+                        pyo3_polars::derive::_update_last_error(err);
+                        return;
+                    }
+            };
+
+            // define the function
+            #ast
+
+            // call the function
+        let result: PolarsResult<polars_core::prelude::Series> = #fn_name(&inputs, context, kwargs);
+    )
+}
+
 fn quote_call_no_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
     quote!(
             // define the function
@@ -57,7 +89,7 @@ fn quote_process_results() -> proc_macro2::TokenStream {
     quote!(match result {
         Ok(out) => {
             // Update return value.
-            *return_value = polars_ffi::export_series(&out);
+            *return_value = polars_ffi::version_0::export_series(&out);
         }
         Err(err) => {
             // Set latest error, but leave return value in empty state.
@@ -68,32 +100,45 @@ fn quote_process_results() -> proc_macro2::TokenStream {
 
 fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     // count how often the user define a kwargs argument.
-    let n_kwargs = ast
+    let args = ast
         .sig
         .inputs
         .iter()
-        .filter(|fn_arg| {
+        .skip(1)
+        .map(|fn_arg| {
             if let FnArg::Typed(pat) = fn_arg {
                 if let syn::Pat::Ident(pat) = pat.pat.as_ref() {
-                    pat.ident.to_string() == "kwargs"
+                    pat.ident.to_string()
                 } else {
-                    false
+                    panic!("expected an argument")
                 }
             } else {
-                true
+                panic!("expected a type argument")
             }
         })
-        .count();
+        .collect::<Vec<_>>();
 
     let fn_name = &ast.sig.ident;
     let error_msg_fn = insert_error_function();
 
-    let quote_call = match n_kwargs {
+    // Get the tokenstream of the call logic.
+    let quote_call = match args.len() {
         0 => quote_call_no_kwargs(&ast, fn_name),
-        1 => quote_call_kwargs(&ast, fn_name),
-        _ => unreachable!(), // arguments are unique
+        1 => match args[0].as_str() {
+            "kwargs" => quote_call_kwargs(&ast, fn_name),
+            "context" => quote_call_context(&ast, fn_name),
+            a => panic!("didn't expect argument {}", a),
+        },
+        2 => match (args[0].as_str(), args[1].as_str()) {
+            ("context", "kwargs") => quote_call_context_kwargs(&ast, fn_name),
+            ("kwargs", "context") => panic!("'kwargs', 'context' order should be reversed"),
+            (a, b) => panic!("didn't expect arguments {}, {}", a, b),
+        },
+        _ => panic!("didn't expect so many arguments"),
     };
+
     let quote_process_result = quote_process_results();
+    let fn_name = get_expression_function_name(fn_name);
 
     quote!(
         use pyo3_polars::export::*;
@@ -103,14 +148,15 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
         // create the outer public function
         #[no_mangle]
         pub unsafe extern "C" fn #fn_name (
-            e: *mut polars_ffi::SeriesExport,
+            e: *mut polars_ffi::version_0::SeriesExport,
             input_len: usize,
             kwargs_ptr: *const u8,
             kwargs_len: usize,
-            return_value: *mut polars_ffi::SeriesExport
+            return_value: *mut polars_ffi::version_0::SeriesExport,
+            context: *mut polars_ffi::version_0::CallerContext
         )  {
             let panic_result = std::panic::catch_unwind(move || {
-                let inputs = polars_ffi::import_series_buffer(e, input_len).unwrap();
+                let inputs = polars_ffi::version_0::import_series_buffer(e, input_len).unwrap();
 
                 #quote_call
 
@@ -119,8 +165,7 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
             });
 
             if panic_result.is_err() {
-                // Set latest to panic and nullify return value;
-                *return_value = polars_ffi::SeriesExport::empty();
+                // Set latest to panic;
                 pyo3_polars::derive::_set_panic();
             }
 
@@ -128,8 +173,21 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
     )
 }
 
-fn get_field_name(fn_name: &syn::Ident) -> syn::Ident {
-    syn::Ident::new(&format!("__polars_field_{}", fn_name), fn_name.span())
+fn get_field_function_name(fn_name: &syn::Ident) -> syn::Ident {
+    syn::Ident::new(
+        &format!(
+            "_polars_plugin_field_{}",
+            fn_name,
+        ),
+        fn_name.span(),
+    )
+}
+
+fn get_expression_function_name(fn_name: &syn::Ident) -> syn::Ident {
+    syn::Ident::new(
+        &format!("_polars_plugin_{}", fn_name),
+        fn_name.span(),
+    )
 }
 
 fn get_inputs() -> proc_macro2::TokenStream {
@@ -147,7 +205,7 @@ fn create_field_function(
     fn_name: &syn::Ident,
     dtype_fn_name: &syn::Ident,
 ) -> proc_macro2::TokenStream {
-    let map_field_name = get_field_name(fn_name);
+    let map_field_name = get_field_function_name(fn_name);
     let inputs = get_inputs();
 
     quote! (
@@ -175,8 +233,7 @@ fn create_field_function(
             });
 
             if panic_result.is_err() {
-                // Set latest to panic and nullify return value;
-                *return_value = polars_core::export::arrow::ffi::ArrowSchema::empty();
+                // Set latest to panic;
                 pyo3_polars::derive::_set_panic();
             }
         }
@@ -187,7 +244,7 @@ fn create_field_function_from_with_dtype(
     fn_name: &syn::Ident,
     dtype: syn::Ident,
 ) -> proc_macro2::TokenStream {
-    let map_field_name = get_field_name(fn_name);
+    let map_field_name = get_field_function_name(fn_name);
     let inputs = get_inputs();
 
     quote! (

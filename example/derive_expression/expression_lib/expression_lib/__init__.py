@@ -11,7 +11,7 @@ class Language:
         self._expr = expr
 
     def pig_latinnify(self, capitalize: bool = False) -> pl.Expr:
-        return self._expr._register_plugin(
+        return self._expr.register_plugin(
             lib=lib,
             symbol="pig_latinnify",
             is_elementwise=True,
@@ -28,7 +28,7 @@ class Language:
         """
         This example shows how arguments other than `Series` can be used.
         """
-        return self._expr._register_plugin(
+        return self._expr.register_plugin(
             lib=lib,
             args=[],
             kwargs={
@@ -48,7 +48,7 @@ class Distance:
         self._expr = expr
 
     def hamming_distance(self, other: IntoExpr) -> pl.Expr:
-        return self._expr._register_plugin(
+        return self._expr.register_plugin(
             lib=lib,
             args=[other],
             symbol="hamming_distance",
@@ -56,7 +56,7 @@ class Distance:
         )
 
     def jaccard_similarity(self, other: IntoExpr) -> pl.Expr:
-        return self._expr._register_plugin(
+        return self._expr.register_plugin(
             lib=lib,
             args=[other],
             symbol="jaccard_similarity",
@@ -70,7 +70,7 @@ class Distance:
         end_lat: IntoExpr,
         end_long: IntoExpr,
     ) -> pl.Expr:
-        return self._expr._register_plugin(
+        return self._expr.register_plugin(
             lib=lib,
             args=[start_lat, start_long, end_lat, end_long],
             symbol="haversine",
@@ -85,8 +85,19 @@ class DateUtil:
         self._expr = expr
 
     def is_leap_year(self) -> pl.Expr:
-        return self._expr._register_plugin(
+        return self._expr.register_plugin(
             lib=lib,
             symbol="is_leap_year",
             is_elementwise=True,
+        )
+
+@pl.api.register_expr_namespace("panic")
+class Panic:
+    def __init__(self, expr: pl.Expr):
+        self._expr = expr
+
+    def panic(self) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="panic",
         )

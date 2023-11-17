@@ -1,5 +1,5 @@
 import polars as pl
-from expression_lib import Language, Distance
+from expression_lib import *
 from datetime import date
 
 df = pl.DataFrame(
@@ -45,3 +45,9 @@ try:
     )
 except pl.ComputeError as e:
     assert "the plugin failed with message" in str(e)
+
+
+# For now test if we abort on panic.
+out.with_columns(
+    pl.col("names").panic.panic()
+)
