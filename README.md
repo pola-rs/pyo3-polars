@@ -1,12 +1,17 @@
 ## 1. Shared library plugins for Polars
 
-This is new functionality and not entirely stable, but should be preferred over `2.` as this
+<a href="https://crates.io/crates/pyo3-polars">
+    <img src="https://img.shields.io/crates/v/pyo3-polars.svg"/>
+  </a>
+
+This is new functionality and should be preferred over `2.` as this
 will circumvent the GIL and will be the way we want to support extending polars.
 
 Parallelism and optimizations are managed by the default polars runtime. That runtime will call into the plugin function.
 The plugin functions are compiled separately.
 
-We can therefore keep polars more lean and maybe add support for a `polars-distance`, `polars-geo`, `polars-ml`, etc. Those can then have specialized expressions and don't have to worry as much for code bloat as they can be optionally installed.
+We can therefore keep polars more lean and maybe add support for a `polars-distance`, `polars-geo`, `polars-ml`, etc. 
+Those can then have specialized expressions and don't have to worry as much for code bloat as they can be optionally installed.
 
 The idea is that you define an expression in another Rust crate with a proc_macro `polars_expr`.
 
@@ -88,10 +93,6 @@ out = df.with_columns(
 See the full example in [example/derive_expression]: https://github.com/pola-rs/pyo3-polars/tree/main/example/derive_expression
 
 ## 2. Pyo3 extensions for Polars
-
-<a href="https://crates.io/crates/pyo3-polars">
-    <img src="https://img.shields.io/crates/v/pyo3-polars.svg"/>
-  </a>
 
 See the `example` directory for a concrete example. Here we send a polars `DataFrame` to rust and then compute a
 `jaccard similarity` in parallel using `rayon` and rust hash sets.
