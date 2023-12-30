@@ -175,19 +175,13 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
 
 fn get_field_function_name(fn_name: &syn::Ident) -> syn::Ident {
     syn::Ident::new(
-        &format!(
-            "_polars_plugin_field_{}",
-            fn_name,
-        ),
+        &format!("_polars_plugin_field_{}", fn_name,),
         fn_name.span(),
     )
 }
 
 fn get_expression_function_name(fn_name: &syn::Ident) -> syn::Ident {
-    syn::Ident::new(
-        &format!("_polars_plugin_{}", fn_name),
-        fn_name.span(),
-    )
+    syn::Ident::new(&format!("_polars_plugin_{}", fn_name), fn_name.span())
 }
 
 fn get_inputs() -> proc_macro2::TokenStream {

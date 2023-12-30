@@ -4,6 +4,7 @@ pub use pyo3_polars_derive::polars_expr;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::ffi::CString;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Gives the caller extra information on how to execute the expression.
 pub use polars_ffi::version_0::CallerContext;
@@ -39,8 +40,24 @@ pub unsafe extern "C" fn _polars_plugin_get_last_error_message() -> *const std::
     LAST_ERROR.with(|prev| prev.borrow_mut().as_ptr())
 }
 
+static INIT: AtomicBool = AtomicBool::new(false);
+
+fn start_up_init() {
+    // Set a custom panic hook that only shows output if verbose.
+    std::panic::set_hook(Box::new(|info| {
+        let show_message = std::env::var("POLARS_VERBOSE").as_deref().unwrap_or("") == "1";
+        if show_message {
+            eprintln!("{}", info)
+        }
+    }));
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn _polars_plugin_get_version() -> u32 {
+    if !INIT.swap(true, Ordering::Relaxed) {
+        // Plugin version is is always called at least once.
+        start_up_init();
+    }
     let (major, minor) = polars_ffi::get_version();
     // Stack bits together
     ((major as u32) << 16) + minor as u32

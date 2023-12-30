@@ -47,7 +47,11 @@ except pl.ComputeError as e:
     assert "the plugin failed with message" in str(e)
 
 
-# For now test if we abort on panic.
-out.with_columns(
-    pl.col("names").panic.panic()
-)
+try:
+    out.with_columns(
+        pl.col("names").panic.panic()
+    )
+except pl.ComputeError as e:
+    assert "the plugin panicked" in str(e)
+
+print("finished")
