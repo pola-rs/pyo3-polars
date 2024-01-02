@@ -42,10 +42,10 @@ struct PigLatinKwargs {
     capitalize: bool,
 }
 
-#[polars_expr(output_type=Utf8)]
+#[polars_expr(output_type=String)]
 fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
-    let ca = inputs[0].utf8()?;
-    let out: Utf8Chunked =
+    let ca = inputs[0].str()?;
+    let out: StringChunked =
         ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
 }
