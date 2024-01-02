@@ -24,10 +24,10 @@ fn pig_latin_str(value: &str, capitalize: bool, output: &mut String) {
     }
 }
 
-#[polars_expr(output_type=Utf8)]
+#[polars_expr(output_type=String)]
 fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
-    let ca = inputs[0].utf8()?;
-    let out: Utf8Chunked =
+    let ca = inputs[0].str()?;
+    let out: StringChunked =
         ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
 }
@@ -53,17 +53,17 @@ fn split_offsets(len: usize, n: usize) -> Vec<(usize, usize)> {
 }
 
 /// This expression will run in parallel if the `context` allows it.
-#[polars_expr(output_type=Utf8)]
+#[polars_expr(output_type=String)]
 fn pig_latinnify_with_paralellism(
     inputs: &[Series],
     context: CallerContext,
     kwargs: PigLatinKwargs,
 ) -> PolarsResult<Series> {
     use rayon::prelude::*;
-    let ca = inputs[0].utf8()?;
+    let ca = inputs[0].str()?;
 
     if context.parallel() {
-        let out: Utf8Chunked =
+        let out: StringChunked =
             ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
         Ok(out.into_series())
     } else {
@@ -82,7 +82,7 @@ fn pig_latinnify_with_paralellism(
                 })
                 .collect();
 
-            Ok(Utf8Chunked::from_chunk_iter(ca.name(), chunks.into_iter().flatten()).into_series())
+            Ok(StringChunked::from_chunk_iter(ca.name(), chunks.into_iter().flatten()).into_series())
         })
     }
 }
@@ -96,8 +96,8 @@ fn jaccard_similarity(inputs: &[Series]) -> PolarsResult<Series> {
 
 #[polars_expr(output_type=Float64)]
 fn hamming_distance(inputs: &[Series]) -> PolarsResult<Series> {
-    let a = inputs[0].utf8()?;
-    let b = inputs[1].utf8()?;
+    let a = inputs[0].str()?;
+    let b = inputs[1].str()?;
     let out: UInt32Chunked =
         arity::binary_elementwise_values(a, b, crate::distances::naive_hamming_dist);
     Ok(out.into_series())
@@ -145,11 +145,11 @@ pub struct MyKwargs {
 /// If you want to accept `kwargs`. You define a `kwargs` argument
 /// on the second position in you plugin. You can provide any custom struct that is deserializable
 /// with the pickle protocol (on the rust side).
-#[polars_expr(output_type=Utf8)]
+#[polars_expr(output_type=String)]
 fn append_kwargs(input: &[Series], kwargs: MyKwargs) -> PolarsResult<Series> {
     let input = &input[0];
-    let input = input.cast(&DataType::Utf8)?;
-    let ca = input.utf8().unwrap();
+    let input = input.cast(&DataType::String)?;
+    let ca = input.str().unwrap();
 
     Ok(ca
         .apply_to_buffer(|val, buf| {
