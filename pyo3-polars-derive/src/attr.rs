@@ -20,7 +20,7 @@ impl<K: Parse, V: Parse> Parse for KeyWordAttribute<K, V> {
 }
 
 pub type OutputAttribute = KeyWordAttribute<keywords::output_type, Ident>;
-pub type OutputFuncAttribute = KeyWordAttribute<keywords::type_func, Ident>;
+pub type OutputFuncAttribute = KeyWordAttribute<keywords::output_type_func, Ident>;
 
 #[derive(Default, Debug)]
 pub struct ExprsFunctionOptions {
@@ -38,7 +38,7 @@ impl Parse for ExprsFunctionOptions {
             if lookahead.peek(keywords::output_type) {
                 let attr = input.parse::<OutputAttribute>()?;
                 options.output_dtype = Some(attr.value)
-            } else if lookahead.peek(keywords::type_func) {
+            } else if lookahead.peek(keywords::output_type_func) {
                 let attr = input.parse::<OutputFuncAttribute>()?;
                 options.output_type_fn = Some(attr.value)
             } else {

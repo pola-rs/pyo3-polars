@@ -1,20 +1,90 @@
 use polars::prelude::*;
 use polars_plan::dsl::FieldsMapper;
-use pyo3_polars::derive::polars_expr;
+use pyo3_polars::derive::{polars_expr, CallerContext};
+use pyo3_polars::export::polars_core::POOL;
 use serde::Deserialize;
 use std::fmt::Write;
 
-fn pig_latin_str(value: &str, output: &mut String) {
+#[derive(Deserialize)]
+struct PigLatinKwargs {
+    capitalize: bool,
+}
+
+fn pig_latin_str(value: &str, capitalize: bool, output: &mut String) {
     if let Some(first_char) = value.chars().next() {
-        write!(output, "{}{}ay", &value[1..], first_char).unwrap()
+        if capitalize {
+            for c in value.chars().skip(1).map(|char| char.to_uppercase()) {
+                write!(output, "{c}").unwrap()
+            }
+            write!(output, "AY").unwrap()
+        } else {
+            let offset = first_char.len_utf8();
+            write!(output, "{}{}ay", &value[offset..], first_char).unwrap()
+        }
     }
 }
 
-#[polars_expr(output_type=Utf8)]
-fn pig_latinnify(inputs: &[Series]) -> PolarsResult<Series> {
-    let ca = inputs[0].utf8()?;
-    let out: Utf8Chunked = ca.apply_to_buffer(pig_latin_str);
+#[polars_expr(output_type=String)]
+fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
+    let ca = inputs[0].str()?;
+    let out: StringChunked =
+        ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
+}
+
+fn split_offsets(len: usize, n: usize) -> Vec<(usize, usize)> {
+    if n == 1 {
+        vec![(0, len)]
+    } else {
+        let chunk_size = len / n;
+
+        (0..n)
+            .map(|partition| {
+                let offset = partition * chunk_size;
+                let len = if partition == (n - 1) {
+                    len - offset
+                } else {
+                    chunk_size
+                };
+                (partition * chunk_size, len)
+            })
+            .collect()
+    }
+}
+
+/// This expression will run in parallel if the `context` allows it.
+#[polars_expr(output_type=String)]
+fn pig_latinnify_with_paralellism(
+    inputs: &[Series],
+    context: CallerContext,
+    kwargs: PigLatinKwargs,
+) -> PolarsResult<Series> {
+    use rayon::prelude::*;
+    let ca = inputs[0].str()?;
+
+    if context.parallel() {
+        let out: StringChunked =
+            ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+        Ok(out.into_series())
+    } else {
+        POOL.install(|| {
+            let n_threads = POOL.current_num_threads();
+            let splits = split_offsets(ca.len(), n_threads);
+
+            let chunks: Vec<_> = splits
+                .into_par_iter()
+                .map(|(offset, len)| {
+                    let sliced = ca.slice(offset as i64, len);
+                    let out = sliced.apply_to_buffer(|value, output| {
+                        pig_latin_str(value, kwargs.capitalize, output)
+                    });
+                    out.downcast_iter().cloned().collect::<Vec<_>>()
+                })
+                .collect();
+
+            Ok(StringChunked::from_chunk_iter(ca.name(), chunks.into_iter().flatten()).into_series())
+        })
+    }
 }
 
 #[polars_expr(output_type=Float64)]
@@ -26,8 +96,8 @@ fn jaccard_similarity(inputs: &[Series]) -> PolarsResult<Series> {
 
 #[polars_expr(output_type=Float64)]
 fn hamming_distance(inputs: &[Series]) -> PolarsResult<Series> {
-    let a = inputs[0].utf8()?;
-    let b = inputs[1].utf8()?;
+    let a = inputs[0].str()?;
+    let b = inputs[1].str()?;
     let out: UInt32Chunked =
         arity::binary_elementwise_values(a, b, crate::distances::naive_hamming_dist);
     Ok(out.into_series())
@@ -37,7 +107,7 @@ fn haversine_output(input_fields: &[Field]) -> PolarsResult<Field> {
     FieldsMapper::new(input_fields).map_to_float_dtype()
 }
 
-#[polars_expr(type_func=haversine_output)]
+#[polars_expr(output_type_func=haversine_output)]
 fn haversine(inputs: &[Series]) -> PolarsResult<Series> {
     let out = match inputs[0].dtype() {
         DataType::Float32 => {
@@ -75,11 +145,11 @@ pub struct MyKwargs {
 /// If you want to accept `kwargs`. You define a `kwargs` argument
 /// on the second position in you plugin. You can provide any custom struct that is deserializable
 /// with the pickle protocol (on the rust side).
-#[polars_expr(output_type=Utf8)]
+#[polars_expr(output_type=String)]
 fn append_kwargs(input: &[Series], kwargs: MyKwargs) -> PolarsResult<Series> {
     let input = &input[0];
-    let input = input.cast(&DataType::Utf8)?;
-    let ca = input.utf8().unwrap();
+    let input = input.cast(&DataType::String)?;
+    let ca = input.str().unwrap();
 
     Ok(ca
         .apply_to_buffer(|val, buf| {
@@ -104,4 +174,9 @@ fn is_leap_year(input: &[Series]) -> PolarsResult<Series> {
         .collect_ca(ca.name());
 
     Ok(out.into_series())
+}
+
+#[polars_expr(output_type=Boolean)]
+fn panic(_input: &[Series]) -> PolarsResult<Series> {
+    todo!()
 }

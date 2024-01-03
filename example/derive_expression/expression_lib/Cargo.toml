@@ -9,9 +9,10 @@ name = "expression_lib"
 crate-type = ["cdylib"]
 
 [dependencies]
-jemallocator = { version = "0.5", features = ["disable_initial_exec_tls"] }
 polars = { workspace = true, features = ["fmt", "dtype-date"], default-features = false }
-polars-plan = { workspace = true, default-features = false }
-pyo3 = { version = "0.20.0", features = ["extension-module"] }
 pyo3-polars = { version = "*", path = "../../../pyo3-polars", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
+rayon = "1.7.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+jemallocator = { version = "0.5", features = ["disable_initial_exec_tls"] }
