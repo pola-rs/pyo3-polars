@@ -123,7 +123,7 @@ impl<'a> FromPyObject<'a> for PySeries {
         let name = ob.getattr("name")?;
         let name = name.str()?.to_str()?;
 
-        let arr = ob.call_method0("to_arrow")?;
+        let arr = ob.call_method1("to_arrow", (true,))?;
         let arr = ffi::to_rust::array_to_rust(arr)?;
         Ok(PySeries(
             Series::try_from((name, arr)).map_err(PyPolarsErr::from)?,
@@ -162,7 +162,7 @@ impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let s = self.0.rechunk();
         let name = s.name();
-        let arr = s.to_arrow(0);
+        let arr = s.to_arrow(0, true);
         let pyarrow = py.import("pyarrow").expect("pyarrow not installed");
         let polars = py.import("polars").expect("polars not installed");
 
