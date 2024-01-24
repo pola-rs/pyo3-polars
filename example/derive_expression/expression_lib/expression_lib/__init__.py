@@ -91,6 +91,14 @@ class DateUtil:
             is_elementwise=True,
         )
 
+    # Note that this already exists in Polars. It is just for explanatory
+    # purposes.
+    def change_time_zone(self, tz: str = "Europe/Amsterdam") -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib, symbol="change_time_zone", is_elementwise=True, kwargs={"tz": tz}
+        )
+
+
 @pl.api.register_expr_namespace("panic")
 class Panic:
     def __init__(self, expr: pl.Expr):

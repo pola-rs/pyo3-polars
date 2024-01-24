@@ -1,12 +1,13 @@
 import polars as pl
 from expression_lib import *
-from datetime import date
+from datetime import date, datetime, timezone
 
 df = pl.DataFrame(
     {
         "names": ["Richard", "Alice", "Bob"],
         "moons": ["full", "half", "red"],
         "dates": [date(2023, 1, 1), date(2024, 1, 1), date(2025, 1, 1)],
+        "datetime": [datetime.now(tz=timezone.utc)] * 3,
         "dist_a": [[12, 32, 1], [], [1, -2]],
         "dist_b": [[-12, 1], [43], [876, -45, 9]],
         "floats": [5.6, -1245.8, 242.224],
@@ -22,6 +23,7 @@ out = df.with_columns(
     jaccard_sim=pl.col("dist_a").dist.jaccard_similarity("dist_b"),
     haversine=pl.col("floats").dist.haversine("floats", "floats", "floats", "floats"),
     leap_year=pl.col("dates").date_util.is_leap_year(),
+    new_tz=pl.col("datetime").date_util.change_time_zone(),
     appended_args=pl.col("names").language.append_args(
         float_arg=11.234,
         integer_arg=93,
@@ -48,9 +50,7 @@ except pl.ComputeError as e:
 
 
 try:
-    out.with_columns(
-        pl.col("names").panic.panic()
-    )
+    out.with_columns(pl.col("names").panic.panic())
 except pl.ComputeError as e:
     assert "the plugin panicked" in str(e)
 

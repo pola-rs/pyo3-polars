@@ -197,7 +197,7 @@ fn convert_timezone(input_fields: &[Field], kwargs: TimeZone) -> PolarsResult<Fi
 }
 
 #[polars_expr(output_type_func_with_kwargs=convert_timezone)]
-fn change_time_unit(input: &[Series], kwargs: TimeZone) -> PolarsResult<Series> {
+fn change_time_zone(input: &[Series], kwargs: TimeZone) -> PolarsResult<Series> {
     let input = &input[0];
     let ca = input.datetime()?;
 
