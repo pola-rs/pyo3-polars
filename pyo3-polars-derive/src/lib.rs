@@ -28,6 +28,7 @@ fn quote_get_kwargs() -> proc_macro2::TokenStream {
     let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
         Ok(value) => value,
         Err(err) => {
+            let err = polars_err!(InvalidOperation: "could not parse kwargs: '{}'\n\nCheck: registration of kwargs in the plugin.", err);
             pyo3_polars::derive::_update_last_error(err);
             return;
         }
@@ -220,7 +221,7 @@ fn create_field_function(
         )
     } else {
         quote!(
-                let result = #dtype_fn_name(&inputs);
+            let result = #dtype_fn_name(&inputs);
         )
     };
 
@@ -240,7 +241,7 @@ fn create_field_function(
 
                 match result {
                     Ok(out) => {
-                        let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+                        let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow(true));
                         *return_value = out;
                     },
                     Err(err) => {
@@ -277,7 +278,7 @@ fn create_field_function_from_with_dtype(
             let mapper = polars_plan::dsl::FieldsMapper::new(&inputs);
             let dtype = polars_core::datatypes::DataType::#dtype;
             let out = mapper.with_dtype(dtype).unwrap();
-            let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow());
+            let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow(true));
             *return_value = out;
         }
     )
