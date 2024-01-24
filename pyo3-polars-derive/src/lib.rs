@@ -21,17 +21,26 @@ fn insert_error_function() -> proc_macro2::TokenStream {
     }
 }
 
-fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+fn quote_get_kwargs() -> proc_macro2::TokenStream {
     quote!(
-            let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
+    let kwargs = std::slice::from_raw_parts(kwargs_ptr, kwargs_len);
 
-            let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
-                    Ok(value) => value,
-                    Err(err) => {
-                        pyo3_polars::derive::_update_last_error(err);
-                        return;
-                    }
-            };
+    let kwargs = match pyo3_polars::derive::_parse_kwargs(kwargs)  {
+        Ok(value) => value,
+        Err(err) => {
+            pyo3_polars::derive::_update_last_error(err);
+            return;
+        }
+    };
+
+    )
+}
+
+fn quote_call_kwargs(ast: &syn::ItemFn, fn_name: &syn::Ident) -> proc_macro2::TokenStream {
+    let kwargs = quote_get_kwargs();
+    quote!(
+            // parse the kwargs and assign to `let kwargs`
+            #kwargs
 
             // define the function
             #ast
@@ -184,7 +193,7 @@ fn get_expression_function_name(fn_name: &syn::Ident) -> syn::Ident {
     syn::Ident::new(&format!("_polars_plugin_{}", fn_name), fn_name.span())
 }
 
-fn get_inputs() -> proc_macro2::TokenStream {
+fn quote_get_inputs() -> proc_macro2::TokenStream {
     quote!(
              let inputs = std::slice::from_raw_parts(field, len);
              let inputs = inputs.iter().map(|field| {
@@ -198,9 +207,22 @@ fn get_inputs() -> proc_macro2::TokenStream {
 fn create_field_function(
     fn_name: &syn::Ident,
     dtype_fn_name: &syn::Ident,
+    kwargs: bool,
 ) -> proc_macro2::TokenStream {
     let map_field_name = get_field_function_name(fn_name);
-    let inputs = get_inputs();
+    let inputs = quote_get_inputs();
+
+    let call_fn = if kwargs {
+        let kwargs = quote_get_kwargs();
+        quote! (
+            #kwargs
+            let result = #dtype_fn_name(&inputs, kwargs);
+        )
+    } else {
+        quote!(
+                let result = #dtype_fn_name(&inputs);
+        )
+    };
 
     quote! (
         #[no_mangle]
@@ -208,11 +230,13 @@ fn create_field_function(
             field: *mut polars_core::export::arrow::ffi::ArrowSchema,
             len: usize,
             return_value: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            kwargs_ptr: *const u8,
+            kwargs_len: usize,
         ) {
             let panic_result = std::panic::catch_unwind(move || {
                 #inputs;
 
-                let result = #dtype_fn_name(&inputs);
+                #call_fn;
 
                 match result {
                     Ok(out) => {
@@ -239,7 +263,7 @@ fn create_field_function_from_with_dtype(
     dtype: syn::Ident,
 ) -> proc_macro2::TokenStream {
     let map_field_name = get_field_function_name(fn_name);
-    let inputs = get_inputs();
+    let inputs = quote_get_inputs();
 
     quote! (
         #[no_mangle]
@@ -265,7 +289,9 @@ pub fn polars_expr(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let options = parse_macro_input!(attr as attr::ExprsFunctionOptions);
     let expanded_field_fn = if let Some(fn_name) = options.output_type_fn {
-        create_field_function(&ast.sig.ident, &fn_name)
+        create_field_function(&ast.sig.ident, &fn_name, false)
+    } else if let Some(fn_name) = options.output_type_fn_kwargs {
+        create_field_function(&ast.sig.ident, &fn_name, true)
     } else if let Some(dtype) = options.output_dtype {
         create_field_function_from_with_dtype(&ast.sig.ident, dtype)
     } else {

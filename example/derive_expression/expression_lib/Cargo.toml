@@ -9,7 +9,7 @@ name = "expression_lib"
 crate-type = ["cdylib"]
 
 [dependencies]
-polars = { workspace = true, features = ["fmt", "dtype-date"], default-features = false }
+polars = { workspace = true, features = ["fmt", "dtype-date", "timezones"], default-features = false }
 pyo3-polars = { version = "*", path = "../../../pyo3-polars", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 rayon = "1.7.0"
