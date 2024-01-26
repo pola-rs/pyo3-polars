@@ -123,7 +123,7 @@ impl<'a> FromPyObject<'a> for PySeries {
         let name = ob.getattr("name")?;
         let name = name.str()?.to_str()?;
 
-        let arr = ob.call_method1("to_arrow", (true,))?;
+        let arr = ob.call_method0("to_arrow")?;
         let arr = ffi::to_rust::array_to_rust(arr)?;
         Ok(PySeries(
             Series::try_from((name, arr)).map_err(PyPolarsErr::from)?,
