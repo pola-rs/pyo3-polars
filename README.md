@@ -72,8 +72,6 @@ def pig_latinnify(expr: IntoExpr, capitalize: bool = False) -> pl.Expr:
         kwargs={"capitalize": capitalize},
     )
 ```
-and/or registered as a [Expression Extension](https://docs.pola.rs/py-polars/html/reference/api/polars.api.register_expr_namespace.html#polars.api.register_expr_namespace).
-
 Compile/ship and then it is ready to use:
 
 ```python
@@ -87,6 +85,12 @@ df = pl.DataFrame({
 
 out = df.with_columns(
    pig_latin = language.pig_latinnify("names")
+)
+```
+Alternatively, you can [register a custom namespace](https://docs.pola.rs/py-polars/html/reference/api/polars.api.register_expr_namespace.html#polars.api.register_expr_namespace), which enables you to write:
+```python
+out = df.with_columns(
+   pig_latin = pl.col("names").language.pig_latinnify()
 )
 ```
 
