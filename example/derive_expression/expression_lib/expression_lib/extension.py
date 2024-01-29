@@ -81,6 +81,3 @@ class Panic:
 
             return func
         raise AttributeError(f"{self.__class__} has no attribute {attr}")
-
-
-Distance(pl.col("a")).hamming_distance(pl.col("b"))
