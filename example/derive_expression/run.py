@@ -1,6 +1,6 @@
 import polars as pl
-from expression_lib import *
 from datetime import date, datetime, timezone
+from expression_lib import language, dist, date_util, panic
 
 df = pl.DataFrame(
     {
@@ -14,6 +14,29 @@ df = pl.DataFrame(
     }
 )
 
+out = df.with_columns(
+    pig_latin=language.pig_latinnify("names"),
+    pig_latin_cap=language.pig_latinnify("names", capitalize=True),
+).with_columns(
+    hamming_dist=dist.hamming_distance("names", "pig_latin"),
+    jaccard_sim=dist.jaccard_similarity("dist_a", "dist_b"),
+    haversine=dist.haversine("floats", "floats", "floats", "floats", "floats"),
+    leap_year=date_util.is_leap_year("dates"),
+    new_tz=date_util.change_time_zone("datetime"),
+    appended_args=language.append_args(
+        "names",
+        float_arg=11.234,
+        integer_arg=93,
+        boolean_arg=False,
+        string_arg="example",
+    ),
+)
+
+print(out)
+
+# Test we can extend the expressions by importing the extension module.
+
+import expression_lib.extension  # noqa: F401
 
 out = df.with_columns(
     pig_latin=pl.col("names").language.pig_latinnify(),

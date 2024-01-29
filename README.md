@@ -51,40 +51,44 @@ fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Seri
 }
 ```
 
-On the python side this expression can then be registered under a namespace:
+This can then be exposed on the Python side:
 
 ```python
 import polars as pl
+from polars.type_aliases import IntoExpr
 from polars.utils.udfs import _get_shared_lib_location
+
+from expression_lib.utils import parse_into_expr
 
 lib = _get_shared_lib_location(__file__)
 
 
-@pl.api.register_expr_namespace("language")
-class Language:
-    def __init__(self, expr: pl.Expr):
-        self._expr = expr
-
-    def pig_latinnify(self, capatilize: bool = False) -> pl.Expr:
-        return self._expr._register_plugin(
-            lib=lib,
-            symbol="pig_latinnify",
-            is_elementwise=True,
-            kwargs={"capitalize": capatilize}
-        )
+def pig_latinnify(expr: IntoExpr, capitalize: bool = False) -> pl.Expr:
+    expr = parse_into_expr(expr)
+    return expr.register_plugin(
+        lib=lib,
+        symbol="pig_latinnify",
+        is_elementwise=True,
+        kwargs={"capitalize": capitalize},
+    )
 ```
-
 Compile/ship and then it is ready to use:
 
 ```python
 import polars as pl
-import expression_lib
+from expression_lib import language
 
 df = pl.DataFrame({
     "names": ["Richard", "Alice", "Bob"],
 })
 
 
+out = df.with_columns(
+   pig_latin = language.pig_latinnify("names")
+)
+```
+Alternatively, you can [register a custom namespace](https://docs.pola.rs/py-polars/html/reference/api/polars.api.register_expr_namespace.html#polars.api.register_expr_namespace), which enables you to write:
+```python
 out = df.with_columns(
    pig_latin = pl.col("names").language.pig_latinnify()
 )
