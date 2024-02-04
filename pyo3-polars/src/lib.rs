@@ -162,7 +162,7 @@ impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let s = self.0.rechunk();
         let name = s.name();
-        let arr = s.to_arrow(0, true);
+        let arr = s.to_arrow(0, false);
         let pyarrow = py.import("pyarrow").expect("pyarrow not installed");
         let polars = py.import("polars").expect("polars not installed");
 
