@@ -15,6 +15,13 @@ fn parallel_jaccard(pydf: PyDataFrame, col_a: &str, col_b: &str) -> PyResult<PyD
 }
 
 #[pyfunction]
+fn debug(pydf: PyDataFrame) -> PyResult<PyDataFrame> {
+    let df: DataFrame = pydf.into();
+    dbg!(&df);
+    Ok(PyDataFrame(df))
+}
+
+#[pyfunction]
 fn lazy_parallel_jaccard(pydf: PyLazyFrame, col_a: &str, col_b: &str) -> PyResult<PyLazyFrame> {
     let df: LazyFrame = pydf.into();
     let df = parallel_jaccard_mod::parallel_jaccard(df.collect().unwrap(), col_a, col_b)
@@ -27,5 +34,6 @@ fn lazy_parallel_jaccard(pydf: PyLazyFrame, col_a: &str, col_b: &str) -> PyResul
 fn extend_polars(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parallel_jaccard, m)?)?;
     m.add_function(wrap_pyfunction!(lazy_parallel_jaccard, m)?)?;
+    m.add_function(wrap_pyfunction!(debug, m)?)?;
     Ok(())
 }

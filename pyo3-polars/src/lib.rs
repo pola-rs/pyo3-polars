@@ -50,7 +50,9 @@ mod ffi;
 
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
+use polars::export::arrow;
 use polars::prelude::*;
+use pyo3::ffi::Py_uintptr_t;
 use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 
 #[cfg(feature = "lazy")]
@@ -160,16 +162,60 @@ impl<'a> FromPyObject<'a> for PyLazyFrame {
 
 impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let s = self.0.rechunk();
-        let name = s.name();
-        let arr = s.to_arrow(0, false);
-        let pyarrow = py.import("pyarrow").expect("pyarrow not installed");
         let polars = py.import("polars").expect("polars not installed");
+        let s = polars.getattr("Series").unwrap();
+        match s.getattr("_import_from_c") {
+            // Go via polars
+            Ok(import_from_c) => {
+                // Prepare pointers on the heap.
+                let mut chunk_ptrs = Vec::with_capacity(self.0.n_chunks());
+                for i in 0..self.0.n_chunks() {
+                    let array = self.0.to_arrow(i, true);
+                    let schema = Box::leak(Box::new(arrow::ffi::export_field_to_c(
+                        &ArrowField::new("", array.data_type().clone(), true),
+                    )));
+                    let array = Box::leak(Box::new(arrow::ffi::export_array_to_c(array.clone())));
 
-        let arg = to_py_array(arr, py, pyarrow).unwrap();
-        let s = polars.call_method1("from_arrow", (arg,)).unwrap();
-        let s = s.call_method1("rename", (name,)).unwrap();
-        s.to_object(py)
+                    let schema_ptr: *const arrow::ffi::ArrowSchema = &*schema;
+                    let array_ptr: *const arrow::ffi::ArrowArray = &*array;
+                    chunk_ptrs.push((schema_ptr as Py_uintptr_t, array_ptr as Py_uintptr_t))
+                }
+                // Somehow we need to clone the Vec, because pyo3 doesn't accept a slice here.
+                let pyseries = import_from_c
+                    .call1((self.0.name(), chunk_ptrs.clone()))
+                    .unwrap();
+                // Deallocate boxes
+                for (schema_ptr, array_ptr) in chunk_ptrs {
+                    let schema_ptr = schema_ptr as *mut arrow::ffi::ArrowSchema;
+                    let array_ptr = array_ptr as *mut arrow::ffi::ArrowArray;
+                    unsafe {
+                        // We can drop both because the `schema` isn't read in an owned matter on the other side.
+                        let _ = Box::from_raw(schema_ptr);
+
+                        // The array is `ptr::read_unaligned` so there are two owners.
+                        // We drop the box, and forget the content so the other process is the owner.
+                        let array = Box::from_raw(array_ptr);
+                        // We must forget because the other process will call the release callback.
+                        let array = *array;
+                        std::mem::forget(array);
+                    }
+                }
+
+                pyseries.to_object(py)
+            }
+            // Go via pyarrow
+            Err(_) => {
+                let s = self.0.rechunk();
+                let name = s.name();
+                let arr = s.to_arrow(0, false);
+                let pyarrow = py.import("pyarrow").expect("pyarrow not installed");
+
+                let arg = to_py_array(arr, py, pyarrow).unwrap();
+                let s = polars.call_method1("from_arrow", (arg,)).unwrap();
+                let s = s.call_method1("rename", (name,)).unwrap();
+                s.to_object(py)
+            }
+        }
     }
 }
 
