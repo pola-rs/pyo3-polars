@@ -11,7 +11,6 @@ description = "Expression plugins and PyO3 types for polars"
 
 [dependencies]
 ciborium = { version = "0.2.1", optional = true }
-polars = { workspace = true, default-features = false }
 polars-core = { workspace = true, default-features = false }
 polars-ffi = { workspace = true, optional = true }
 polars-lazy = { workspace = true, optional = true }
@@ -21,6 +20,12 @@ pyo3-polars-derive = { version = "0.5.0", path = "../pyo3-polars-derive", option
 serde = { version = "1", optional = true }
 serde-pickle = { version = "1", optional = true }
 thiserror = "1"
+once_cell = "1"
+itoa = "1.0.6"
+
+[dependencies.polars]
+workspace = true
+features = ["dtype-full"]
 
 [features]
 lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy/serde", "ciborium"]
