@@ -10,7 +10,10 @@ df = pl.DataFrame(
         "datetime": [datetime.now(tz=timezone.utc)] * 3,
         "dist_a": [[12, 32, 1], [], [1, -2]],
         "dist_b": [[-12, 1], [43], [876, -45, 9]],
-        "floats": [5.6, -1245.8, 242.224],
+        "start_lat": [5.6, -1245.8, 242.224],
+        "start_lon": [3.1, -1.1, 128.9],
+        "end_lat": [6.6, -1243.8, 240.224],
+        "end_lon": [3.9, -2, 130],
     }
 )
 
@@ -20,7 +23,7 @@ out = df.with_columns(
 ).with_columns(
     hamming_dist=dist.hamming_distance("names", "pig_latin"),
     jaccard_sim=dist.jaccard_similarity("dist_a", "dist_b"),
-    haversine=dist.haversine("floats", "floats", "floats", "floats", "floats"),
+    haversine=dist.haversine("start_lat", "start_lon", "end_lat", "end_lon"),
     leap_year=date_util.is_leap_year("dates"),
     new_tz=date_util.change_time_zone("datetime"),
     appended_args=language.append_args(
@@ -44,7 +47,7 @@ out = df.with_columns(
 ).with_columns(
     hamming_dist=pl.col("names").dist.hamming_distance("pig_latin"),
     jaccard_sim=pl.col("dist_a").dist.jaccard_similarity("dist_b"),
-    haversine=pl.col("floats").dist.haversine("floats", "floats", "floats", "floats"),
+    haversine=pl.col("start_lat").dist.haversine("start_lon", "end_lat", "end_lon"),
     leap_year=pl.col("dates").date_util.is_leap_year(),
     new_tz=pl.col("datetime").date_util.change_time_zone(),
     appended_args=pl.col("names").language.append_args(
