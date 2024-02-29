@@ -143,7 +143,7 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
             let s = pyseries.extract::<PySeries>()?.0;
             columns.push(s);
         }
-        Ok(PyDataFrame(DataFrame::new_no_checks(columns)))
+        unsafe { Ok(PyDataFrame(DataFrame::new_no_checks(columns))) }
     }
 }
 
