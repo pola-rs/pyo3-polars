@@ -52,8 +52,8 @@ use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
 use polars::export::arrow;
 use polars::prelude::*;
+use pyo3::prelude::*;
 use pyo3::ffi::Py_uintptr_t;
-use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
 
 #[cfg(feature = "lazy")]
 use {polars_lazy::frame::LazyFrame, polars_plan::logical_plan::LogicalPlan};
@@ -162,7 +162,7 @@ impl<'a> FromPyObject<'a> for PyLazyFrame {
 
 impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let polars = py.import("polars").expect("polars not installed");
+        let polars = py.import_bound("polars").expect("polars not installed");
         let s = polars.getattr("Series").unwrap();
         match s.getattr("_import_from_c") {
             // Go via polars
@@ -208,9 +208,9 @@ impl IntoPy<PyObject> for PySeries {
                 let s = self.0.rechunk();
                 let name = s.name();
                 let arr = s.to_arrow(0, false);
-                let pyarrow = py.import("pyarrow").expect("pyarrow not installed");
+                let pyarrow = py.import_bound("pyarrow").expect("pyarrow not installed");
 
-                let arg = to_py_array(arr, py, pyarrow).unwrap();
+                let arg = to_py_array(arr, py, &pyarrow).unwrap();
                 let s = polars.call_method1("from_arrow", (arg,)).unwrap();
                 let s = s.call_method1("rename", (name,)).unwrap();
                 s.to_object(py)
@@ -228,7 +228,7 @@ impl IntoPy<PyObject> for PyDataFrame {
             .map(|s| PySeries(s.clone()).into_py(py))
             .collect::<Vec<_>>();
 
-        let polars = py.import("polars").expect("polars not installed");
+        let polars = py.import_bound("polars").expect("polars not installed");
         let df_object = polars.call_method1("DataFrame", (pyseries,)).unwrap();
         df_object.into_py(py)
     }
@@ -237,9 +237,9 @@ impl IntoPy<PyObject> for PyDataFrame {
 #[cfg(feature = "lazy")]
 impl IntoPy<PyObject> for PyLazyFrame {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let polars = py.import("polars").expect("polars not installed");
+        let polars = py.import_bound("polars").expect("polars not installed");
         let cls = polars.getattr("LazyFrame").unwrap();
-        let instance = cls.call_method1("__new__", (cls,)).unwrap();
+        let instance = cls.call_method1("__new__", (cls.clone(),)).unwrap();
         let mut writer: Vec<u8> = vec![];
         ciborium::ser::into_writer(&self.0.logical_plan, &mut writer).unwrap();
 

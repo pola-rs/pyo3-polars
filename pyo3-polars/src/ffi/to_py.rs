@@ -4,7 +4,7 @@ use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
 
 /// Arrow array to Python.
-pub(crate) fn to_py_array(array: ArrayRef, py: Python, pyarrow: &PyModule) -> PyResult<PyObject> {
+pub(crate) fn to_py_array(array: ArrayRef, py: Python, pyarrow: &Bound<'_, PyModule>) -> PyResult<PyObject> {
     let schema = Box::new(ffi::export_field_to_c(&ArrowField::new(
         "",
         array.data_type().clone(),
