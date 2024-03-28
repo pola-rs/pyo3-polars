@@ -22,16 +22,16 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Set up Rust
         run: rustup show
 
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: mozilla-actions/sccache-action@v0.0.4
 
       - run: cargo test
         working-directory: pyo3-polars
