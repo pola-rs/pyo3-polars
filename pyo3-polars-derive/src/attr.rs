@@ -6,6 +6,7 @@ use syn::Token;
 
 #[derive(Clone, Debug)]
 pub struct KeyWordAttribute<K, V> {
+    #[allow(dead_code)]
     pub kw: K,
     pub value: V,
 }
