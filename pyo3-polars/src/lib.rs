@@ -23,7 +23,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
-//! fn expression_lib(_py: Python, m: &PyModule) -> PyResult<()> {
+//! fn expression_lib(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(my_cool_function, m)?)?;
 //!     Ok(())
 //! }
@@ -119,22 +119,23 @@ impl AsRef<LazyFrame> for PyLazyFrame {
 }
 
 impl<'a> FromPyObject<'a> for PySeries {
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
         let ob = ob.call_method0("rechunk")?;
 
         let name = ob.getattr("name")?;
-        let name = name.str()?.to_str()?;
+        let py_name = name.str()?;
+        let name = py_name.to_cow()?;
 
         let arr = ob.call_method0("to_arrow")?;
-        let arr = ffi::to_rust::array_to_rust(arr)?;
+        let arr = ffi::to_rust::array_to_rust(&arr)?;
         Ok(PySeries(
-            Series::try_from((name, arr)).map_err(PyPolarsErr::from)?,
+            Series::try_from((&*name, arr)).map_err(PyPolarsErr::from)?,
         ))
     }
 }
 
 impl<'a> FromPyObject<'a> for PyDataFrame {
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
         let series = ob.call_method0("get_columns")?;
         let n = ob.getattr("width")?.extract::<usize>()?;
         let mut columns = Vec::with_capacity(n);
@@ -149,7 +150,7 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
 
 #[cfg(feature = "lazy")]
 impl<'a> FromPyObject<'a> for PyLazyFrame {
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
         let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
         let lp: LogicalPlan = ciborium::de::from_reader(&*s).map_err(
             |e| PyPolarsErr::Other(
@@ -237,9 +238,9 @@ impl IntoPy<PyObject> for PyDataFrame {
 #[cfg(feature = "lazy")]
 impl IntoPy<PyObject> for PyLazyFrame {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let polars = py.import("polars").expect("polars not installed");
+        let polars = py.import_bound("polars").expect("polars not installed");
         let cls = polars.getattr("LazyFrame").unwrap();
-        let instance = cls.call_method1("__new__", (cls,)).unwrap();
+        let instance = cls.call_method1("__new__", (&cls,)).unwrap();
         let mut writer: Vec<u8> = vec![];
         ciborium::ser::into_writer(&self.0.logical_plan, &mut writer).unwrap();
 
