@@ -56,7 +56,7 @@ use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
 
 #[cfg(feature = "lazy")]
-use {polars_lazy::frame::LazyFrame, polars_plan::logical_plan::LogicalPlan};
+use {polars_lazy::frame::LazyFrame, polars_plan::logical_plan::DslPlan};
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
@@ -152,7 +152,7 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
 impl<'a> FromPyObject<'a> for PyLazyFrame {
     fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
         let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
-        let lp: LogicalPlan = ciborium::de::from_reader(&*s).map_err(
+        let lp: DslPlan = ciborium::de::from_reader(&*s).map_err(
             |e| PyPolarsErr::Other(
                 format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {}", e)
             )
