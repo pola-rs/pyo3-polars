@@ -4,8 +4,10 @@
     <img src="https://img.shields.io/crates/v/pyo3-polars.svg"/>
   </a>
 
+Documentation for this functionality may also be found in the [Polars User Guide](https://docs.pola.rs/user-guide/expressions/plugins/).
 This is new functionality and should be preferred over `2.` as this
 will circumvent the GIL and will be the way we want to support extending polars.
+
 
 Parallelism and optimizations are managed by the default polars runtime. That runtime will call into the plugin function.
 The plugin functions are compiled separately.
@@ -15,10 +17,11 @@ Those can then have specialized expressions and don't have to worry as much for 
 
 The idea is that you define an expression in another Rust crate with a proc_macro `polars_expr`.
 
-That macro can have the following attributes:
+The macro may have one of the following attributes:
 
 - `output_type` -> to define the output type of that expression
 - `output_type_func` -> to define a function that computes the output type based on input types.
+- `output_type_func_with_kwargs` -> to define a function that computes the output type based on input types and keyword args.
 
 Here is an example of a `String` conversion expression that converts any string to [pig latin](https://en.wikipedia.org/wiki/Pig_Latin):
 
