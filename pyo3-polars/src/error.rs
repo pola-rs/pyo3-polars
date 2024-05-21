@@ -16,16 +16,13 @@ pub enum PyPolarsErr {
 
 impl std::convert::From<PyPolarsErr> for PyErr {
     fn from(err: PyPolarsErr) -> PyErr {
-        let default = || PyRuntimeError::new_err(format!("{:?}", &err));
-
-        use PyPolarsErr::*;
-        match &err {
-            Polars(err) => match err {
+        fn convert(err: &PolarsError) -> PyErr {
+            match err {
                 PolarsError::ComputeError(err) => ComputeError::new_err(err.to_string()),
                 PolarsError::NoData(err) => NoDataError::new_err(err.to_string()),
                 PolarsError::ShapeMismatch(err) => ShapeError::new_err(err.to_string()),
                 PolarsError::SchemaMismatch(err) => SchemaError::new_err(err.to_string()),
-                PolarsError::Io(err) => PyIOError::new_err(err.to_string()),
+                PolarsError::IO { error, .. } => PyIOError::new_err(error.to_string()),
                 PolarsError::OutOfBounds(err) => PyIndexError::new_err(err.to_string()),
                 PolarsError::InvalidOperation(err) => PyValueError::new_err(err.to_string()),
                 PolarsError::Duplicate(err) => DuplicateError::new_err(err.to_string()),
@@ -39,8 +36,14 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                 PolarsError::StringCacheMismatch(err) => {
                     StringCacheMismatchError::new_err(err.to_string())
                 }
-            },
-            _ => default(),
+                PolarsError::Context { error, .. } => convert(error),
+            }
+        }
+
+        use PyPolarsErr::*;
+        match &err {
+            Polars(err) => convert(err),
+            _ => PyRuntimeError::new_err(format!("{:?}", &err)),
         }
     }
 }
