@@ -4,7 +4,7 @@ use polars::prelude::*;
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
 
-pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
+pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {
     // prepare a pointer to receive the Array struct
     let array = Box::new(ffi::ArrowArray::empty());
     let schema = Box::new(ffi::ArrowSchema::empty());
