@@ -36,6 +36,12 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                 PolarsError::StringCacheMismatch(err) => {
                     StringCacheMismatchError::new_err(err.to_string())
                 }
+                PolarsError::SQLInterface(err) => {
+                    SQLInterface::new_err(err.to_string())
+                },
+                PolarsError::SQLSyntax(err) => {
+                    SQLSyntax::new_err(err.to_string())
+                }
                 PolarsError::Context { error, .. } => convert(error),
             }
         }
@@ -67,3 +73,5 @@ create_exception!(exceptions, ShapeError, PyException);
 create_exception!(exceptions, SchemaError, PyException);
 create_exception!(exceptions, DuplicateError, PyException);
 create_exception!(exceptions, StringCacheMismatchError, PyException);
+create_exception!(exceptions, SQLInterface, PyException);
+create_exception!(exceptions, SQLSyntax, PyException);

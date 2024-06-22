@@ -8,11 +8,10 @@ Documentation for this functionality may also be found in the [Polars User Guide
 This is new functionality and should be preferred over `2.` as this
 will circumvent the GIL and will be the way we want to support extending polars.
 
-
 Parallelism and optimizations are managed by the default polars runtime. That runtime will call into the plugin function.
 The plugin functions are compiled separately.
 
-We can therefore keep polars more lean and maybe add support for a `polars-distance`, `polars-geo`, `polars-ml`, etc. 
+We can therefore keep polars more lean and maybe add support for a `polars-distance`, `polars-geo`, `polars-ml`, etc.
 Those can then have specialized expressions and don't have to worry as much for code bloat as they can be optionally installed.
 
 The idea is that you define an expression in another Rust crate with a proc_macro `polars_expr`.
@@ -75,6 +74,7 @@ def pig_latinnify(expr: IntoExpr, capitalize: bool = False) -> pl.Expr:
         kwargs={"capitalize": capitalize},
     )
 ```
+
 Compile/ship and then it is ready to use:
 
 ```python
@@ -90,7 +90,9 @@ out = df.with_columns(
    pig_latin = language.pig_latinnify("names")
 )
 ```
+
 Alternatively, you can [register a custom namespace](https://docs.pola.rs/py-polars/html/reference/api/polars.api.register_expr_namespace.html#polars.api.register_expr_namespace), which enables you to write:
+
 ```python
 out = df.with_columns(
    pig_latin = pl.col("names").language.pig_latinnify()

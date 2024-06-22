@@ -1,15 +1,15 @@
 import polars as pl
 from polars.type_aliases import IntoExpr
-from polars.utils.udfs import _get_shared_lib_location
+from polars.plugins import register_plugin_function
 
 from expression_lib.utils import parse_into_expr
-
-lib = _get_shared_lib_location(__file__)
+from pathlib import Path
 
 
 def panic(expr: IntoExpr) -> pl.Expr:
     expr = parse_into_expr(expr)
-    return expr.register_plugin(
-        lib=lib,
-        symbol="panic",
+    return register_plugin_function(
+        plugin_path=Path(__file__).parent,
+        args=[expr],
+        function_name="panic",
     )
