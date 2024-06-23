@@ -71,13 +71,13 @@ try:
             string_arg="example",
         )
     )
-except pl.ComputeError as e:
+except pl.exceptions.ComputeError as e:
     assert "the plugin failed with message" in str(e)
 
 
 try:
     out.with_columns(pl.col("names").panic.panic())
-except pl.ComputeError as e:
+except pl.exceptions.ComputeError as e:
     assert "the plugin panicked" in str(e)
 
 print("finished")

@@ -56,7 +56,7 @@ use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
 
 #[cfg(feature = "lazy")]
-use {polars_lazy::frame::LazyFrame, polars_plan::logical_plan::DslPlan};
+use {polars_lazy::frame::LazyFrame, polars_plan::plans::DslPlan};
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
