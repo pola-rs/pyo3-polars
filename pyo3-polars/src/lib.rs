@@ -54,7 +54,7 @@ use polars::export::arrow;
 use polars::prelude::*;
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
-
+use pyo3::types::PyDict;
 #[cfg(feature = "lazy")]
 use {polars_lazy::frame::LazyFrame, polars_plan::plans::DslPlan};
 
@@ -126,7 +126,9 @@ impl<'a> FromPyObject<'a> for PySeries {
         let py_name = name.str()?;
         let name = py_name.to_cow()?;
 
-        let arr = ob.call_method0("to_arrow")?;
+        let kwargs = PyDict::new_bound(ob.py());
+        kwargs.set_item("future", true)?;
+        let arr = ob.call_method("to_arrow", (), Some(&kwargs))?;
         let arr = ffi::to_rust::array_to_rust(&arr)?;
         Ok(PySeries(
             Series::try_from((&*name, arr)).map_err(PyPolarsErr::from)?,
