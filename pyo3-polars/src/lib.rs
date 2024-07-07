@@ -127,7 +127,12 @@ impl<'a> FromPyObject<'a> for PySeries {
         let name = py_name.to_cow()?;
 
         let kwargs = PyDict::new_bound(ob.py());
-        kwargs.set_item("future", true)?;
+        if let Ok(compat_level) = ob.call_method0("_newest_compat_level") {
+            let compat_level = compat_level.extract().unwrap();
+            let compat_level =
+                CompatLevel::with_level(compat_level).unwrap_or(CompatLevel::newest());
+            kwargs.set_item("compat_level", compat_level.get_level())?;
+        }
         let arr = ob.call_method("to_arrow", (), Some(&kwargs))?;
         let arr = ffi::to_rust::array_to_rust(&arr)?;
         Ok(PySeries(
