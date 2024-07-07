@@ -36,12 +36,8 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                 PolarsError::StringCacheMismatch(err) => {
                     StringCacheMismatchError::new_err(err.to_string())
                 }
-                PolarsError::SQLInterface(err) => {
-                    SQLInterface::new_err(err.to_string())
-                },
-                PolarsError::SQLSyntax(err) => {
-                    SQLSyntax::new_err(err.to_string())
-                }
+                PolarsError::SQLInterface(err) => SQLInterface::new_err(err.to_string()),
+                PolarsError::SQLSyntax(err) => SQLSyntax::new_err(err.to_string()),
                 PolarsError::Context { error, .. } => convert(error),
             }
         }

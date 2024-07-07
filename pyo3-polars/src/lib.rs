@@ -170,10 +170,18 @@ impl IntoPy<PyObject> for PySeries {
         match s.getattr("_import_arrow_from_c") {
             // Go via polars
             Ok(import_arrow_from_c) => {
+                // Get supported compatibility level
+                let compat_level = CompatLevel::with_level(
+                    s.getattr("_newest_compat_level")
+                        .map_or(1, |newest_compat_level| {
+                            newest_compat_level.call0().unwrap().extract().unwrap()
+                        }),
+                )
+                .unwrap_or(CompatLevel::newest());
                 // Prepare pointers on the heap.
                 let mut chunk_ptrs = Vec::with_capacity(self.0.n_chunks());
                 for i in 0..self.0.n_chunks() {
-                    let array = self.0.to_arrow(i, true);
+                    let array = self.0.to_arrow(i, compat_level);
                     let schema = Box::leak(Box::new(arrow::ffi::export_field_to_c(
                         &ArrowField::new("", array.data_type().clone(), true),
                     )));
@@ -210,7 +218,7 @@ impl IntoPy<PyObject> for PySeries {
             Err(_) => {
                 let s = self.0.rechunk();
                 let name = s.name();
-                let arr = s.to_arrow(0, false);
+                let arr = s.to_arrow(0, CompatLevel::oldest());
                 let pyarrow = py.import_bound("pyarrow").expect("pyarrow not installed");
 
                 let arg = to_py_array(arr, py, pyarrow).unwrap();
