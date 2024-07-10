@@ -16,7 +16,7 @@ polars-core = { workspace = true, default-features = false }
 polars-ffi = { workspace = true, optional = true }
 polars-lazy = { workspace = true, optional = true }
 polars-plan = { workspace = true, optional = true }
-pyo3 = "0.21.0"
+pyo3 = "0.22.0"
 pyo3-polars-derive = { version = "0.9.0", path = "../pyo3-polars-derive", optional = true }
 serde = { version = "1", optional = true }
 serde-pickle = { version = "1", optional = true }
