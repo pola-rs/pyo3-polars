@@ -172,7 +172,10 @@ impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let polars = py.import_bound("polars").expect("polars not installed");
         let s = polars.getattr("Series").unwrap();
-        match s.getattr("_import_arrow_from_c") {
+        match s
+            .getattr("_import_arrow_from_c")
+            .or_else(|_| s.getattr("_import_from_c"))
+        {
             // Go via polars
             Ok(import_arrow_from_c) => {
                 // Get supported compatibility level
