@@ -41,6 +41,7 @@
 //! })
 //! out_df = my_cool_function(df)
 //! ```
+mod alloc;
 #[cfg(feature = "derive")]
 pub mod derive;
 pub mod error;
@@ -48,6 +49,7 @@ pub mod error;
 pub mod export;
 mod ffi;
 
+pub use crate::alloc::PolarsAllocator;
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
 use polars::export::arrow;
