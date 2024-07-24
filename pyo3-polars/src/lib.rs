@@ -165,9 +165,9 @@ impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let polars = py.import_bound("polars").expect("polars not installed");
         let s = polars.getattr("Series").unwrap();
-        match s.getattr("_import_from_c") {
+        match s.getattr("_import_arrow_from_c") {
             // Go via polars
-            Ok(import_from_c) => {
+            Ok(import_arrow_from_c) => {
                 // Prepare pointers on the heap.
                 let mut chunk_ptrs = Vec::with_capacity(self.0.n_chunks());
                 for i in 0..self.0.n_chunks() {
@@ -182,7 +182,7 @@ impl IntoPy<PyObject> for PySeries {
                     chunk_ptrs.push((schema_ptr as Py_uintptr_t, array_ptr as Py_uintptr_t))
                 }
                 // Somehow we need to clone the Vec, because pyo3 doesn't accept a slice here.
-                let pyseries = import_from_c
+                let pyseries = import_arrow_from_c
                     .call1((self.0.name(), chunk_ptrs.clone()))
                     .unwrap();
                 // Deallocate boxes
