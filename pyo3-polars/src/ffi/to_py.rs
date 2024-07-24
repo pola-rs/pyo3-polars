@@ -20,7 +20,7 @@ pub(crate) fn to_py_array(
     let array_ptr: *const ffi::ArrowArray = &*array;
 
     let array = pyarrow.getattr("Array")?.call_method1(
-        "_import_from_c",
+        "_import_arrow_from_c",
         (array_ptr as Py_uintptr_t, schema_ptr as Py_uintptr_t),
     )?;
 
