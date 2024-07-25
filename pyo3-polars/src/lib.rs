@@ -54,7 +54,7 @@ use polars::export::arrow;
 use polars::prelude::*;
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
-
+use pyo3::types::PyDict;
 #[cfg(feature = "lazy")]
 use {polars_lazy::frame::LazyFrame, polars_plan::plans::DslPlan};
 
@@ -126,7 +126,14 @@ impl<'a> FromPyObject<'a> for PySeries {
         let py_name = name.str()?;
         let name = py_name.to_cow()?;
 
-        let arr = ob.call_method0("to_arrow")?;
+        let kwargs = PyDict::new_bound(ob.py());
+        if let Ok(compat_level) = ob.call_method0("_newest_compat_level") {
+            let compat_level = compat_level.extract().unwrap();
+            let compat_level =
+                CompatLevel::with_level(compat_level).unwrap_or(CompatLevel::newest());
+            kwargs.set_item("compat_level", compat_level.get_level())?;
+        }
+        let arr = ob.call_method("to_arrow", (), Some(&kwargs))?;
         let arr = ffi::to_rust::array_to_rust(&arr)?;
         Ok(PySeries(
             Series::try_from((&*name, arr)).map_err(PyPolarsErr::from)?,
@@ -165,13 +172,24 @@ impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let polars = py.import_bound("polars").expect("polars not installed");
         let s = polars.getattr("Series").unwrap();
-        match s.getattr("_import_arrow_from_c") {
+        match s
+            .getattr("_import_arrow_from_c")
+            .or_else(|_| s.getattr("_import_from_c"))
+        {
             // Go via polars
             Ok(import_arrow_from_c) => {
+                // Get supported compatibility level
+                let compat_level = CompatLevel::with_level(
+                    s.getattr("_newest_compat_level")
+                        .map_or(1, |newest_compat_level| {
+                            newest_compat_level.call0().unwrap().extract().unwrap()
+                        }),
+                )
+                .unwrap_or(CompatLevel::newest());
                 // Prepare pointers on the heap.
                 let mut chunk_ptrs = Vec::with_capacity(self.0.n_chunks());
                 for i in 0..self.0.n_chunks() {
-                    let array = self.0.to_arrow(i, true);
+                    let array = self.0.to_arrow(i, compat_level);
                     let schema = Box::leak(Box::new(arrow::ffi::export_field_to_c(
                         &ArrowField::new("", array.data_type().clone(), true),
                     )));
@@ -208,7 +226,7 @@ impl IntoPy<PyObject> for PySeries {
             Err(_) => {
                 let s = self.0.rechunk();
                 let name = s.name();
-                let arr = s.to_arrow(0, false);
+                let arr = s.to_arrow(0, CompatLevel::oldest());
                 let pyarrow = py.import_bound("pyarrow").expect("pyarrow not installed");
 
                 let arg = to_py_array(arr, py, pyarrow).unwrap();
