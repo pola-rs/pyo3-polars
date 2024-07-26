@@ -67,7 +67,7 @@ impl PolarsAllocator {
         // Do not allocate in this function,
         // otherwise it will cause infinite recursion.
         self.0.get_or_init(|| {
-            (unsafe { Py_IsInitialized() } != 0)
+            let r = (unsafe { Py_IsInitialized() } != 0)
                 .then(|| {
                     Python::with_gil(|_| unsafe {
                         (PyCapsule_Import(ALLOCATOR_CAPSULE_NAME.as_ptr() as *const c_char, 0)
@@ -75,8 +75,14 @@ impl PolarsAllocator {
                             .as_ref()
                     })
                 })
-                .flatten()
-                .unwrap_or(&FALLBACK_ALLOCATOR_CAPSULE)
+                .flatten();
+            #[cfg(debug_assertions)]
+            if r.is_none() {
+                // Do not use eprintln; it may alloc.
+                let msg = b"failed to get allocator capsule\n";
+                unsafe { libc::write(2, msg.as_ptr() as *const libc::c_void, msg.len()) };
+            }
+            r.unwrap_or(&FALLBACK_ALLOCATOR_CAPSULE)
         })
     }
 
