@@ -2,7 +2,7 @@ use std::alloc::{GlobalAlloc, Layout, System};
 use std::ffi::c_char;
 
 use once_cell::race::OnceRef;
-use pyo3::ffi::PyCapsule_Import;
+use pyo3::ffi::{PyCapsule_Import, Py_IsInitialized};
 use pyo3::Python;
 
 unsafe extern "C" fn fallback_alloc(size: usize, align: usize) -> *mut u8 {
@@ -67,14 +67,16 @@ impl PolarsAllocator {
         // Do not allocate in this function,
         // otherwise it will cause infinite recursion.
         self.0.get_or_init(|| {
-            Python::with_gil(|_| {
-                unsafe {
-                    (PyCapsule_Import(ALLOCATOR_CAPSULE_NAME.as_ptr() as *const c_char, 0)
-                        as *const AllocatorCapsule)
-                        .as_ref()
-                }
+            (unsafe { Py_IsInitialized() } != 0)
+                .then(|| {
+                    Python::with_gil(|_| unsafe {
+                        (PyCapsule_Import(ALLOCATOR_CAPSULE_NAME.as_ptr() as *const c_char, 0)
+                            as *const AllocatorCapsule)
+                            .as_ref()
+                    })
+                })
+                .flatten()
                 .unwrap_or(&FALLBACK_ALLOCATOR_CAPSULE)
-            })
         })
     }
 
