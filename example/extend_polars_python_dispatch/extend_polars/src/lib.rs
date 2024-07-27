@@ -5,7 +5,10 @@ use polars_lazy::frame::IntoLazy;
 use polars_lazy::prelude::LazyFrame;
 use pyo3::prelude::*;
 use pyo3_polars::error::PyPolarsErr;
-use pyo3_polars::{PyDataFrame, PyLazyFrame};
+use pyo3_polars::{PolarsAllocator, PyDataFrame, PyLazyFrame};
+
+#[global_allocator]
+static ALLOC: PolarsAllocator = PolarsAllocator::new();
 
 #[pyfunction]
 fn parallel_jaccard(pydf: PyDataFrame, col_a: &str, col_b: &str) -> PyResult<PyDataFrame> {
