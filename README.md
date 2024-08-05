@@ -48,7 +48,7 @@ struct PigLatinKwargs {
 fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
     let ca = inputs[0].str()?;
     let out: StringChunked =
-        ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+        ca.apply_into_string_amortized(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
 }
 ```
