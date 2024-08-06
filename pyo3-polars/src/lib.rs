@@ -50,8 +50,8 @@ pub mod export;
 mod ffi;
 mod types;
 
-use once_cell::sync::Lazy;
 pub use crate::alloc::PolarsAllocator;
+use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 pub use types::*;
 
