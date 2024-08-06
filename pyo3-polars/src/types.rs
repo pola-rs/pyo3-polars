@@ -171,10 +171,12 @@ impl IntoPy<PyObject> for PySeries {
                     )));
                     let array = Box::new(arrow::ffi::export_array_to_c(array.clone()));
 
-                    let schema_ptr: *const arrow::ffi::ArrowSchema = &*schema;
-                    let array_ptr: *const arrow::ffi::ArrowArray = &*array;
+                    let schema_ptr: *const arrow::ffi::ArrowSchema = Box::leak(schema);
+                    let array_ptr: *const arrow::ffi::ArrowArray = Box::leak(array);
+
                     chunk_ptrs.push((schema_ptr as Py_uintptr_t, array_ptr as Py_uintptr_t))
                 }
+
                 // Somehow we need to clone the Vec, because pyo3 doesn't accept a slice here.
                 let pyseries = import_arrow_from_c
                     .call1((self.0.name(), chunk_ptrs.clone()))
@@ -191,6 +193,7 @@ impl IntoPy<PyObject> for PySeries {
                         // We drop the box, and forget the content so the other process is the owner.
                         let array = Box::from_raw(array_ptr);
                         // We must forget because the other process will call the release callback.
+                        // Read *array as Box::into_inner
                         let array = *array;
                         std::mem::forget(array);
                     }
