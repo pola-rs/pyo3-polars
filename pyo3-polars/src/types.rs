@@ -2,11 +2,15 @@ use super::*;
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
 use polars::export::arrow;
+#[cfg(feature = "dtype-categorical")]
+use polars_core::datatypes::create_enum_data_type;
 use polars_core::datatypes::{CompatLevel, DataType};
 use polars_core::prelude::*;
 use polars_core::utils::materialize_dyn_int;
 #[cfg(feature = "lazy")]
 use polars_lazy::frame::LazyFrame;
+#[cfg(feature = "lazy")]
+use polars_plan::dsl::Expr;
 #[cfg(feature = "lazy")]
 use polars_plan::plans::DslPlan;
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -17,9 +21,6 @@ use pyo3::pybacked::PyBackedStr;
 use pyo3::types::PyDict;
 #[cfg(feature = "dtype-full")]
 use pyo3::types::PyList;
-#[cfg(feature = "dtype-categorical")]
-use polars_core::datatypes::create_enum_data_type;
-use polars_plan::dsl::Expr;
 
 #[cfg(feature = "dtype-categorical")]
 pub(crate) fn get_series(obj: &Bound<'_, PyAny>) -> PyResult<Series> {
@@ -49,7 +50,6 @@ pub struct PyDataFrame(pub DataFrame);
 /// from disk
 pub struct PyLazyFrame(pub LazyFrame);
 
-
 #[cfg(feature = "lazy")]
 #[repr(transparent)]
 #[derive(Clone)]
@@ -71,7 +71,6 @@ pub struct PyTimeUnit(TimeUnit);
 #[derive(Clone)]
 pub struct PyField(Field);
 
-
 impl<'py> FromPyObject<'py> for PyField {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
@@ -79,9 +78,7 @@ impl<'py> FromPyObject<'py> for PyField {
             .getattr(intern!(py, "name"))?
             .str()?
             .extract::<PyBackedStr>()?;
-        let dtype = ob
-            .getattr(intern!(py, "dtype"))?
-            .extract::<PyDataType>()?;
+        let dtype = ob.getattr(intern!(py, "dtype"))?.extract::<PyDataType>()?;
         Ok(PyField(Field::new(&name, dtype.0)))
     }
 }
@@ -96,7 +93,7 @@ impl<'py> FromPyObject<'py> for PyTimeUnit {
                 return Err(PyValueError::new_err(format!(
                     "`time_unit` must be one of {{'ns', 'us', 'ms'}}, got {v}",
                 )))
-            },
+            }
         };
         Ok(PyTimeUnit(parsed))
     }
@@ -112,7 +109,6 @@ impl ToPyObject for PyTimeUnit {
         time_unit.into_py(py)
     }
 }
-
 
 impl From<PyDataFrame> for DataFrame {
     fn from(value: PyDataFrame) -> Self {
@@ -507,7 +503,6 @@ impl IntoPy<PyObject> for PySchema {
         dict.into_py(py)
     }
 }
-
 
 impl<'py> FromPyObject<'py> for PyDataType {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {

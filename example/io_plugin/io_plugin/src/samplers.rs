@@ -1,21 +1,19 @@
-use std::sync::Mutex;
 use polars::export::arrow::bitmap::MutableBitmap;
 use polars::export::arrow::types::NativeType;
 use polars::prelude::*;
 use pyo3::{pyclass, pyfunction};
 use pyo3_polars::export::polars_core::datatypes::{DataType, PolarsDataType};
-use pyo3_polars::export::polars_core::prelude::Series;
-use rand::distributions::{Bernoulli, Uniform};
-use rand::distributions::uniform::SampleUniform;
-use rand::prelude::*;
 use pyo3_polars::export::polars_core::export::arrow::array::BooleanArray;
+use pyo3_polars::export::polars_core::prelude::Series;
 use pyo3_polars::PyDataType;
-
+use rand::distributions::uniform::SampleUniform;
+use rand::distributions::{Bernoulli, Uniform};
+use rand::prelude::*;
+use std::sync::Mutex;
 
 #[pyclass]
 #[derive(Clone)]
 pub struct PySampler(pub Arc<Mutex<Box<dyn Sampler>>>);
-
 
 pub trait Sampler: Send {
     fn name(&self) -> &str;
@@ -28,20 +26,26 @@ pub trait Sampler: Send {
 struct UniformSampler<X: SampleUniform + NativeType + Send> {
     name: String,
     rng: StdRng,
-    d: Uniform<X>
+    d: Uniform<X>,
 }
 
-
-fn new_uniform_impl<T: NumericNative + SampleUniform>(name: String, low: T, high: T, seed: u64) -> UniformSampler<T>{
+fn new_uniform_impl<T: NumericNative + SampleUniform>(
+    name: String,
+    low: T,
+    high: T,
+    seed: u64,
+) -> UniformSampler<T> {
     UniformSampler {
         name,
         rng: StdRng::seed_from_u64(seed),
-        d: Uniform::new(low, high)
+        d: Uniform::new(low, high),
     }
 }
 
 impl<T: NumericNative + SampleUniform + Send> Sampler for UniformSampler<T>
-where Series: NamedFromOwned<Vec<T>>, T::Sampler: Send
+where
+    Series: NamedFromOwned<Vec<T>>,
+    T::Sampler: Send,
 {
     fn name(&self) -> &str {
         &self.name
@@ -68,27 +72,24 @@ pub fn new_uniform(name: String, low: f64, high: f64, dtype: PyDataType, seed: u
             let low = low as i32;
             let high = high as i32;
             Box::new(new_uniform_impl(name, low, high, seed)) as Box<dyn Sampler>
-        },
+        }
         DataType::Int64 => {
             let low = low as i64;
             let high = high as i64;
             Box::new(new_uniform_impl(name, low, high, seed)) as Box<dyn Sampler>
-        },
-        DataType::Float64 => {
-            Box::new(new_uniform_impl(name, low, high, seed))
-        },
-        _ => todo!()
+        }
+        DataType::Float64 => Box::new(new_uniform_impl(name, low, high, seed)),
+        _ => todo!(),
     };
     PySampler(Arc::new(Mutex::new(sampler)))
 }
 struct BernoulliSample {
     name: String,
     rng: StdRng,
-    d: Bernoulli
+    d: Bernoulli,
 }
 
-impl Sampler for BernoulliSample
-{
+impl Sampler for BernoulliSample {
     fn name(&self) -> &str {
         &self.name
     }
@@ -105,17 +106,20 @@ impl Sampler for BernoulliSample
             bits.push(v)
         }
 
-        Series::from_arrow(self.name(), BooleanArray::from_data_default(bits.freeze(), None).boxed()).unwrap()
+        Series::from_arrow(
+            self.name(),
+            BooleanArray::from_data_default(bits.freeze(), None).boxed(),
+        )
+        .unwrap()
     }
 }
-
 
 #[pyfunction]
 pub fn new_bernoulli(name: String, p: f64, seed: u64) -> PySampler {
     let b = BernoulliSample {
         name,
         rng: StdRng::seed_from_u64(seed),
-        d: Bernoulli::new(p).expect("invalid p")
+        d: Bernoulli::new(p).expect("invalid p"),
     };
 
     PySampler(Arc::new(Mutex::new(Box::new(b))))

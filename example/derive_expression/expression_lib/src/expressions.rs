@@ -27,8 +27,9 @@ fn pig_latin_str(value: &str, capitalize: bool, output: &mut String) {
 #[polars_expr(output_type=String)]
 fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
     let ca = inputs[0].str()?;
-    let out: StringChunked =
-        ca.apply_into_string_amortized(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+    let out: StringChunked = ca.apply_into_string_amortized(|value, output| {
+        pig_latin_str(value, kwargs.capitalize, output)
+    });
     Ok(out.into_series())
 }
 
@@ -63,8 +64,9 @@ fn pig_latinnify_with_paralellism(
     let ca = inputs[0].str()?;
 
     if context.parallel() {
-        let out: StringChunked =
-            ca.apply_into_string_amortized(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+        let out: StringChunked = ca.apply_into_string_amortized(|value, output| {
+            pig_latin_str(value, kwargs.capitalize, output)
+        });
         Ok(out.into_series())
     } else {
         POOL.install(|| {
