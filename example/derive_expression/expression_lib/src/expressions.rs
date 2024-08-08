@@ -28,7 +28,7 @@ fn pig_latin_str(value: &str, capitalize: bool, output: &mut String) {
 fn pig_latinnify(inputs: &[Series], kwargs: PigLatinKwargs) -> PolarsResult<Series> {
     let ca = inputs[0].str()?;
     let out: StringChunked =
-        ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+        ca.apply_into_string_amortized(|value, output| pig_latin_str(value, kwargs.capitalize, output));
     Ok(out.into_series())
 }
 
@@ -64,7 +64,7 @@ fn pig_latinnify_with_paralellism(
 
     if context.parallel() {
         let out: StringChunked =
-            ca.apply_to_buffer(|value, output| pig_latin_str(value, kwargs.capitalize, output));
+            ca.apply_into_string_amortized(|value, output| pig_latin_str(value, kwargs.capitalize, output));
         Ok(out.into_series())
     } else {
         POOL.install(|| {
@@ -75,7 +75,7 @@ fn pig_latinnify_with_paralellism(
                 .into_par_iter()
                 .map(|(offset, len)| {
                     let sliced = ca.slice(offset as i64, len);
-                    let out = sliced.apply_to_buffer(|value, output| {
+                    let out = sliced.apply_into_string_amortized(|value, output| {
                         pig_latin_str(value, kwargs.capitalize, output)
                     });
                     out.downcast_iter().cloned().collect::<Vec<_>>()
@@ -155,7 +155,7 @@ fn append_kwargs(input: &[Series], kwargs: MyKwargs) -> PolarsResult<Series> {
     let ca = input.str().unwrap();
 
     Ok(ca
-        .apply_to_buffer(|val, buf| {
+        .apply_into_string_amortized(|val, buf| {
             write!(
                 buf,
                 "{}-{}-{}-{}-{}",

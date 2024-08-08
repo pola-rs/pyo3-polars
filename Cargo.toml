@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "example/derive_expression/expression_lib",
   "example/extend_polars_python_dispatch/extend_polars",
+  "example/io_plugin/io_plugin",
   "pyo3-polars",
   "pyo3-polars-derive",
 ]
@@ -13,6 +14,12 @@ polars-core = { version = "0.41.0", default-features = false }
 polars-ffi = { version = "0.41.0", default-features = false }
 polars-plan = { version = "0.41.0", default-feautres = false }
 polars-lazy = { version = "0.41.0", default-features = false }
+
+[workspace.dependencies.arrow]
+package = "polars-arrow"
+version = "0.41.3"
+path = "../polars/crates/polars-arrow"
+default-features = false
 
 [patch.crates-io]
 polars = { git = "https://github.com/pola-rs/polars.git" }
