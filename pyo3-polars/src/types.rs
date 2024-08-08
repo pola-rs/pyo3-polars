@@ -2,19 +2,31 @@ use super::*;
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
 use polars::export::arrow;
+#[cfg(feature = "dtype-categorical")]
+use polars_core::datatypes::create_enum_data_type;
 use polars_core::datatypes::{CompatLevel, DataType};
 use polars_core::prelude::*;
 use polars_core::utils::materialize_dyn_int;
 #[cfg(feature = "lazy")]
 use polars_lazy::frame::LazyFrame;
 #[cfg(feature = "lazy")]
+use polars_plan::dsl::Expr;
+#[cfg(feature = "lazy")]
 use polars_plan::plans::DslPlan;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::intern;
 use pyo3::prelude::*;
+use pyo3::pybacked::PyBackedStr;
 use pyo3::types::PyDict;
 #[cfg(feature = "dtype-full")]
 use pyo3::types::PyList;
+
+#[cfg(feature = "dtype-categorical")]
+pub(crate) fn get_series(obj: &Bound<'_, PyAny>) -> PyResult<Series> {
+    let s = obj.getattr(intern!(obj.py(), "_s"))?;
+    Ok(s.extract::<PySeries>()?.0)
+}
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
@@ -38,9 +50,65 @@ pub struct PyDataFrame(pub DataFrame);
 /// from disk
 pub struct PyLazyFrame(pub LazyFrame);
 
+#[cfg(feature = "lazy")]
+#[repr(transparent)]
+#[derive(Clone)]
+pub struct PyExpr(pub Expr);
+
+#[repr(transparent)]
+#[derive(Clone)]
 pub struct PySchema(pub SchemaRef);
 
+#[repr(transparent)]
+#[derive(Clone)]
 pub struct PyDataType(pub DataType);
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct PyTimeUnit(TimeUnit);
+
+#[repr(transparent)]
+#[derive(Clone)]
+pub struct PyField(Field);
+
+impl<'py> FromPyObject<'py> for PyField {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = ob.py();
+        let name = ob
+            .getattr(intern!(py, "name"))?
+            .str()?
+            .extract::<PyBackedStr>()?;
+        let dtype = ob.getattr(intern!(py, "dtype"))?.extract::<PyDataType>()?;
+        Ok(PyField(Field::new(&name, dtype.0)))
+    }
+}
+
+impl<'py> FromPyObject<'py> for PyTimeUnit {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let parsed = match &*ob.extract::<PyBackedStr>()? {
+            "ns" => TimeUnit::Nanoseconds,
+            "us" => TimeUnit::Microseconds,
+            "ms" => TimeUnit::Milliseconds,
+            v => {
+                return Err(PyValueError::new_err(format!(
+                    "`time_unit` must be one of {{'ns', 'us', 'ms'}}, got {v}",
+                )))
+            }
+        };
+        Ok(PyTimeUnit(parsed))
+    }
+}
+
+impl ToPyObject for PyTimeUnit {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        let time_unit = match self.0 {
+            TimeUnit::Nanoseconds => "ns",
+            TimeUnit::Microseconds => "us",
+            TimeUnit::Milliseconds => "ms",
+        };
+        time_unit.into_py(py)
+    }
+}
 
 impl From<PyDataFrame> for DataFrame {
     fn from(value: PyDataFrame) -> Self {
@@ -142,6 +210,19 @@ impl<'a> FromPyObject<'a> for PyLazyFrame {
     }
 }
 
+#[cfg(feature = "lazy")]
+impl<'a> FromPyObject<'a> for PyExpr {
+    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
+        let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
+        let e: Expr = ciborium::de::from_reader(&*s).map_err(
+            |e| PyPolarsErr::Other(
+                format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {}", e)
+            )
+        )?;
+        Ok(PyExpr(e))
+    }
+}
+
 impl IntoPy<PyObject> for PySeries {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let polars = POLARS.bind(py);
@@ -240,6 +321,20 @@ impl IntoPy<PyObject> for PyLazyFrame {
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
         let mut writer: Vec<u8> = vec![];
         ciborium::ser::into_writer(&self.0.logical_plan, &mut writer).unwrap();
+
+        instance.call_method1("__setstate__", (&*writer,)).unwrap();
+        instance.into_py(py)
+    }
+}
+
+#[cfg(feature = "lazy")]
+impl IntoPy<PyObject> for PyExpr {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let polars = POLARS.bind(py);
+        let cls = polars.getattr("Expr").unwrap();
+        let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
+        let mut writer: Vec<u8> = vec![];
+        ciborium::ser::into_writer(&self.0, &mut writer).unwrap();
 
         instance.call_method1("__setstate__", (&*writer,)).unwrap();
         instance.into_py(py)
@@ -406,5 +501,148 @@ impl IntoPy<PyObject> for PySchema {
             dict.set_item(k.as_str(), PyDataType(v.clone())).unwrap();
         }
         dict.into_py(py)
+    }
+}
+
+impl<'py> FromPyObject<'py> for PyDataType {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = ob.py();
+        let type_name = ob.get_type().qualname()?;
+        let type_name = type_name.to_cow()?;
+
+        let dtype = match type_name.as_ref() {
+            "DataTypeClass" => {
+                // just the class, not an object
+                let name = ob
+                    .getattr(intern!(py, "__name__"))?
+                    .str()?
+                    .extract::<PyBackedStr>()?;
+                match &*name {
+                    "Int8" => DataType::Int8,
+                    "Int16" => DataType::Int16,
+                    "Int32" => DataType::Int32,
+                    "Int64" => DataType::Int64,
+                    "UInt8" => DataType::UInt8,
+                    "UInt16" => DataType::UInt16,
+                    "UInt32" => DataType::UInt32,
+                    "UInt64" => DataType::UInt64,
+                    "Float32" => DataType::Float32,
+                    "Float64" => DataType::Float64,
+                    "Boolean" => DataType::Boolean,
+                    "String" => DataType::String,
+                    "Binary" => DataType::Binary,
+                    #[cfg(feature = "dtype-categorical")]
+                    "Categorical" => DataType::Categorical(None, Default::default()),
+                    #[cfg(feature = "dtype-categorical")]
+                    "Enum" => DataType::Enum(None, Default::default()),
+                    "Date" => DataType::Date,
+                    "Time" => DataType::Time,
+                    "Datetime" => DataType::Datetime(TimeUnit::Microseconds, None),
+                    "Duration" => DataType::Duration(TimeUnit::Microseconds),
+                    #[cfg(feature = "dtype-decimal")]
+                    "Decimal" => DataType::Decimal(None, None), // "none" scale => "infer"
+                    "List" => DataType::List(Box::new(DataType::Null)),
+                    #[cfg(feature = "dtype-array")]
+                    "Array" => DataType::Array(Box::new(DataType::Null), 0),
+                    #[cfg(feature = "dtype-struct")]
+                    "Struct" => DataType::Struct(vec![]),
+                    "Null" => DataType::Null,
+                    #[cfg(feature = "object")]
+                    "Object" => todo!(),
+                    "Unknown" => DataType::Unknown(Default::default()),
+                    dt => {
+                        return Err(PyTypeError::new_err(format!(
+                            "'{dt}' is not a Polars data type, or the plugin isn't compiled with the right features",
+                        )))
+                    },
+                }
+            },
+            "Int8" => DataType::Int8,
+            "Int16" => DataType::Int16,
+            "Int32" => DataType::Int32,
+            "Int64" => DataType::Int64,
+            "UInt8" => DataType::UInt8,
+            "UInt16" => DataType::UInt16,
+            "UInt32" => DataType::UInt32,
+            "UInt64" => DataType::UInt64,
+            "Float32" => DataType::Float32,
+            "Float64" => DataType::Float64,
+            "Boolean" => DataType::Boolean,
+            "String" => DataType::String,
+            "Binary" => DataType::Binary,
+            #[cfg(feature = "dtype-categorical")]
+            "Categorical" => {
+                let ordering = ob.getattr(intern!(py, "ordering")).unwrap();
+
+                let ordering = match ordering.extract::<&str>()? {
+                    "physical" => CategoricalOrdering::Physical,
+                    "lexical" => CategoricalOrdering::Lexical,
+                    ordering => PyValueError::new_err(format!("invalid ordering argument: {ordering}"))
+                };
+
+                DataType::Categorical(None, ordering)
+            },
+            #[cfg(feature = "dtype-categorical")]
+            "Enum" => {
+                let categories = ob.getattr(intern!(py, "categories")).unwrap();
+                let s = get_series(&categories.as_borrowed())?;
+                let ca = s.str().map_err(PyPolarsErr::from)?;
+                let categories = ca.downcast_iter().next().unwrap().clone();
+                create_enum_data_type(categories)
+            },
+            "Date" => DataType::Date,
+            "Time" => DataType::Time,
+            "Datetime" => {
+                let time_unit = ob.getattr(intern!(py, "time_unit")).unwrap();
+                let time_unit = time_unit.extract::<PyTimeUnit>()?.0;
+                let time_zone = ob.getattr(intern!(py, "time_zone")).unwrap();
+                let time_zone = time_zone.extract()?;
+                DataType::Datetime(time_unit, time_zone)
+            },
+            "Duration" => {
+                let time_unit = ob.getattr(intern!(py, "time_unit")).unwrap();
+                let time_unit = time_unit.extract::<PyTimeUnit>()?.0;
+                DataType::Duration(time_unit)
+            },
+            #[cfg(feature = "dtype-decimal")]
+            "Decimal" => {
+                let precision = ob.getattr(intern!(py, "precision"))?.extract()?;
+                let scale = ob.getattr(intern!(py, "scale"))?.extract()?;
+                DataType::Decimal(precision, Some(scale))
+            },
+            "List" => {
+                let inner = ob.getattr(intern!(py, "inner")).unwrap();
+                let inner = inner.extract::<PyDataType>()?;
+                DataType::List(Box::new(inner.0))
+            },
+            #[cfg(feature = "dtype-array")]
+            "Array" => {
+                let inner = ob.getattr(intern!(py, "inner")).unwrap();
+                let size = ob.getattr(intern!(py, "size")).unwrap();
+                let inner = inner.extract::<PyDataType>()?;
+                let size = size.extract::<usize>()?;
+                DataType::Array(Box::new(inner.0), size)
+            },
+            #[cfg(feature = "dtype-struct")]
+            "Struct" => {
+                let fields = ob.getattr(intern!(py, "fields"))?;
+                let fields = fields
+                    .extract::<Vec<PyField>>()?
+                    .into_iter()
+                    .map(|f| f.0)
+                    .collect::<Vec<Field>>();
+                DataType::Struct(fields)
+            },
+            "Null" => DataType::Null,
+            #[cfg(feature = "object")]
+            "Object" => panic!("object not supported"),
+            "Unknown" => DataType::Unknown(Default::default()),
+            dt => {
+                return Err(PyTypeError::new_err(format!(
+                    "'{dt}' is not a Polars data type, or the plugin isn't compiled with the right features",
+                )))
+            },
+        };
+        Ok(PyDataType(dtype))
     }
 }

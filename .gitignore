@@ -4,3 +4,6 @@ Cargo.lock
 venv/
 target/
 rust-toolchain.toml
+*.so
+**/*.pyc
+__pycache__/
