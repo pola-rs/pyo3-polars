@@ -19,7 +19,7 @@ use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedStr;
 use pyo3::types::PyDict;
-#[cfg(feature = "dtype-full")]
+#[cfg(feature = "dtype-struct")]
 use pyo3::types::PyList;
 
 #[cfg(feature = "dtype-categorical")]
