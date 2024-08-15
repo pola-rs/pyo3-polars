@@ -36,6 +36,24 @@ jobs:
       - run: cargo test
         working-directory: pyo3-polars
 
+      - run: cargo test --all-features
+        working-directory: pyo3-polars
+
+      - run: cargo test --features dtype-categorical
+        working-directory: pyo3-polars
+
+      - run: cargo test --features dtype-full
+        working-directory: pyo3-polars
+
+      - run: cargo test --features dtype-struct
+        working-directory: pyo3-polars
+
+      - run: cargo test --features dtype-array
+        working-directory: pyo3-polars
+
+      - run: cargo test --features lazy
+        working-directory: pyo3-polars
+
       - run: make install
         working-directory: example/extend_polars_python_dispatch
 
