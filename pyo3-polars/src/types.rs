@@ -460,7 +460,7 @@ impl ToPyObject for PyDataType {
                 let categories = rev_map.as_ref().unwrap().get_categories();
                 let class = pl.getattr(intern!(py, "Enum")).unwrap();
                 let s = Series::from_arrow("category", categories.clone().boxed()).unwrap();
-                let series = to_series(py, s.into());
+                let series = to_series(py, PySeries(s));
                 return class.call1((series,)).unwrap().into();
             }
             DataType::Time => pl.getattr(intern!(py, "Time")).unwrap().into(),
@@ -577,7 +577,9 @@ impl<'py> FromPyObject<'py> for PyDataType {
                 let ordering = match ordering.extract::<&str>()? {
                     "physical" => CategoricalOrdering::Physical,
                     "lexical" => CategoricalOrdering::Lexical,
-                    ordering => PyValueError::new_err(format!("invalid ordering argument: {ordering}"))
+                    ordering => {
+                        return Err(PyValueError::new_err(format!("invalid ordering argument: {ordering}")))
+                    }
                 };
 
                 DataType::Categorical(None, ordering)

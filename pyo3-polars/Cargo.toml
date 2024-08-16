@@ -27,7 +27,7 @@ thiserror = "1"
 [features]
 lazy = ["polars/serde-lazy", "polars-plan", "polars-lazy/serde", "ciborium"]
 derive = ["pyo3-polars-derive", "polars-plan", "polars-ffi", "serde-pickle", "serde"]
-dtype-full = ["polars/dtype-full", "dtype-decimal", "dtype-array", "dtype-categorical"]
+dtype-full = ["polars/dtype-full", "dtype-decimal", "dtype-array", "dtype-struct", "dtype-categorical"]
 object = ["polars/object"]
 dtype-decimal = ["polars/dtype-decimal"]
 dtype-struct = ["polars/dtype-struct"]
