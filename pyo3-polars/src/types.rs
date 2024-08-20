@@ -341,7 +341,7 @@ impl IntoPy<PyObject> for PyExpr {
     }
 }
 
-#[cfg(feature = "dtype-full")]
+#[cfg(any(feature = "dtype-full", feature = "dtype-categorical"))]
 pub(crate) fn to_series(py: Python, s: PySeries) -> PyObject {
     let series = SERIES.bind(py);
     let constructor = series
