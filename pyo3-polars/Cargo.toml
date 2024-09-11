@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-polars"
-version = "0.16.1"
+version = "0.17.0"
 edition = "2021"
 license = "MIT"
 readme = "../README.md"
@@ -19,7 +19,7 @@ polars-ffi = { workspace = true, optional = true }
 polars-lazy = { workspace = true, optional = true }
 polars-plan = { workspace = true, optional = true }
 pyo3 = "0.22.2"
-pyo3-polars-derive = { version = "0.10.0", path = "../pyo3-polars-derive", optional = true }
+pyo3-polars-derive = { version = "0.11.0", path = "../pyo3-polars-derive", optional = true }
 serde = { version = "1", optional = true }
 serde-pickle = { version = "1", optional = true }
 thiserror = "1"

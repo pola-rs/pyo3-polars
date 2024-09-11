@@ -90,5 +90,5 @@ where
         })
         .collect();
 
-    Ok(out.with_name(start_lat.name()))
+    Ok(out.with_name(start_lat.name().clone()))
 }

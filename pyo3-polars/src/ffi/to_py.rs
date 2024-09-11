@@ -10,8 +10,8 @@ pub(crate) fn to_py_array(
     pyarrow: Bound<'_, PyModule>,
 ) -> PyResult<PyObject> {
     let schema = Box::new(ffi::export_field_to_c(&ArrowField::new(
-        "",
-        array.data_type().clone(),
+        "".into(),
+        array.dtype().clone(),
         true,
     )));
     let array = Box::new(ffi::export_array_to_c(array));

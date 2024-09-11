@@ -85,7 +85,7 @@ fn pig_latinnify_with_paralellism(
                 .collect();
 
             Ok(
-                StringChunked::from_chunk_iter(ca.name(), chunks.into_iter().flatten())
+                StringChunked::from_chunk_iter(ca.name().clone(), chunks.into_iter().flatten())
                     .into_series(),
             )
         })
@@ -176,7 +176,7 @@ fn is_leap_year(input: &[Series]) -> PolarsResult<Series> {
     let out: BooleanChunked = ca
         .as_date_iter()
         .map(|opt_dt| opt_dt.map(|dt| dt.leap_year()))
-        .collect_ca(ca.name());
+        .collect_ca(ca.name().clone());
 
     Ok(out.into_series())
 }
@@ -193,7 +193,7 @@ struct TimeZone {
 
 fn convert_timezone(input_fields: &[Field], kwargs: TimeZone) -> PolarsResult<Field> {
     FieldsMapper::new(input_fields).try_map_dtype(|dtype| match dtype {
-        DataType::Datetime(tu, _) => Ok(DataType::Datetime(*tu, Some(kwargs.tz.clone()))),
+        DataType::Datetime(tu, _) => Ok(DataType::Datetime(*tu, Some(kwargs.tz.into()))),
         _ => polars_bail!(ComputeError: "expected datetime"),
     })
 }
@@ -206,6 +206,6 @@ fn change_time_zone(input: &[Series], kwargs: TimeZone) -> PolarsResult<Series> 
     let ca = input.datetime()?;
 
     let mut out = ca.clone();
-    out.set_time_zone(kwargs.tz)?;
+    out.set_time_zone(kwargs.tz.into())?;
     Ok(out.into_series())
 }
