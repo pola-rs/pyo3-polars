@@ -92,6 +92,12 @@ impl PolarsAllocator {
     }
 }
 
+impl Default for PolarsAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 unsafe impl GlobalAlloc for PolarsAllocator {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {

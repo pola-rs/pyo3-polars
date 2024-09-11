@@ -16,7 +16,7 @@ thread_local! {
     static LAST_ERROR: RefCell<CString> = RefCell::new(CString::default());
 }
 
-pub unsafe fn _parse_kwargs<'a, T>(kwargs: &'a [u8]) -> PolarsResult<T>
+pub fn _parse_kwargs<'a, T>(kwargs: &'a [u8]) -> PolarsResult<T>
 where
     T: Deserialize<'a>,
 {
@@ -30,12 +30,14 @@ pub fn _update_last_error(err: PolarsError) {
 }
 
 pub fn _set_panic() {
-    let msg = format!("PANIC");
+    let msg = "PANIC".to_string();
     let msg = CString::new(msg).unwrap();
     LAST_ERROR.with(|prev| *prev.borrow_mut() = msg)
 }
 
 #[no_mangle]
+/// # Safety
+/// FFI function, so unsafe
 pub unsafe extern "C" fn _polars_plugin_get_last_error_message() -> *const std::os::raw::c_char {
     LAST_ERROR.with(|prev| prev.borrow_mut().as_ptr())
 }
@@ -53,6 +55,8 @@ fn start_up_init() {
 }
 
 #[no_mangle]
+/// # Safety
+/// FFI function, so unsafe
 pub unsafe extern "C" fn _polars_plugin_get_version() -> u32 {
     if !INIT.swap(true, Ordering::Relaxed) {
         // Plugin version is is always called at least once.

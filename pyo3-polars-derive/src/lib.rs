@@ -171,7 +171,6 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
                 #quote_call
 
                 #quote_process_result
-                ()
             });
 
             if panic_result.is_err() {
