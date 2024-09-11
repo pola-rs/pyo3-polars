@@ -30,7 +30,7 @@ pub fn _update_last_error(err: PolarsError) {
 }
 
 pub fn _set_panic() {
-    let msg = "PANIC".to_string();
+    let msg = "PANIC";
     let msg = CString::new(msg).unwrap();
     LAST_ERROR.with(|prev| *prev.borrow_mut() = msg)
 }
