@@ -80,7 +80,9 @@ impl PolarsAllocator {
             if r.is_none() {
                 // Do not use eprintln; it may alloc.
                 let msg = b"failed to get allocator capsule\n";
-                unsafe { libc::write(2, msg.as_ptr() as *const libc::c_void, msg.len()) };
+                // Message length type is platform-dependent.
+                let msg_len = msg.len().try_into().unwrap();
+                unsafe { libc::write(2, msg.as_ptr() as *const libc::c_void, msg_len) };
             }
             r.unwrap_or(&FALLBACK_ALLOCATOR_CAPSULE)
         })
