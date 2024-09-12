@@ -21,7 +21,7 @@ pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {
 
     unsafe {
         let field = ffi::import_field_from_c(schema.as_ref()).map_err(PyPolarsErr::from)?;
-        let array = ffi::import_array_from_c(*array, field.data_type).map_err(PyPolarsErr::from)?;
+        let array = ffi::import_array_from_c(*array, field.dtype).map_err(PyPolarsErr::from)?;
         Ok(array)
     }
 }

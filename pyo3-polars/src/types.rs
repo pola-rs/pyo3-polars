@@ -79,7 +79,8 @@ impl<'py> FromPyObject<'py> for PyField {
             .str()?
             .extract::<PyBackedStr>()?;
         let dtype = ob.getattr(intern!(py, "dtype"))?.extract::<PyDataType>()?;
-        Ok(PyField(Field::new(&name, dtype.0)))
+        let name: &str = name.as_ref();
+        Ok(PyField(Field::new(name.into(), dtype.0)))
     }
 }
 
@@ -177,8 +178,9 @@ impl<'a> FromPyObject<'a> for PySeries {
         }
         let arr = ob.call_method("to_arrow", (), Some(&kwargs))?;
         let arr = ffi::to_rust::array_to_rust(&arr)?;
+        let name = name.as_ref();
         Ok(PySeries(
-            Series::try_from((&*name, arr)).map_err(PyPolarsErr::from)?,
+            Series::try_from((PlSmallStr::from(name), arr)).map_err(PyPolarsErr::from)?,
         ))
     }
 }
@@ -246,8 +248,8 @@ impl IntoPy<PyObject> for PySeries {
                 for i in 0..self.0.n_chunks() {
                     let array = self.0.to_arrow(i, compat_level);
                     let schema = Box::new(arrow::ffi::export_field_to_c(&ArrowField::new(
-                        "",
-                        array.data_type().clone(),
+                        "".into(),
+                        array.dtype().clone(),
                         true,
                     )));
                     let array = Box::new(arrow::ffi::export_array_to_c(array.clone()));
@@ -260,7 +262,7 @@ impl IntoPy<PyObject> for PySeries {
 
                 // Somehow we need to clone the Vec, because pyo3 doesn't accept a slice here.
                 let pyseries = import_arrow_from_c
-                    .call1((self.0.name(), chunk_ptrs.clone()))
+                    .call1((self.0.name().as_str(), chunk_ptrs.clone()))
                     .unwrap();
                 // Deallocate boxes
                 for (schema_ptr, array_ptr) in chunk_ptrs {
@@ -285,7 +287,7 @@ impl IntoPy<PyObject> for PySeries {
             // Go via pyarrow
             Err(_) => {
                 let s = self.0.rechunk();
-                let name = s.name();
+                let name = s.name().as_str();
                 let arr = s.to_arrow(0, CompatLevel::oldest());
                 let pyarrow = py.import_bound("pyarrow").expect("pyarrow not installed");
 
@@ -432,7 +434,7 @@ impl ToPyObject for PyDataType {
             DataType::Datetime(tu, tz) => {
                 let datetime_class = pl.getattr(intern!(py, "Datetime")).unwrap();
                 datetime_class
-                    .call1((tu.to_ascii(), tz.clone()))
+                    .call1((tu.to_ascii(), tz.as_ref().map(|s| s.as_str())))
                     .unwrap()
                     .into()
             }
@@ -459,7 +461,7 @@ impl ToPyObject for PyDataType {
                 // we should always have an initialized rev_map coming from rust
                 let categories = rev_map.as_ref().unwrap().get_categories();
                 let class = pl.getattr(intern!(py, "Enum")).unwrap();
-                let s = Series::from_arrow("category", categories.clone().boxed()).unwrap();
+                let s = Series::from_arrow("category".into(), categories.clone().boxed()).unwrap();
                 let series = to_series(py, PySeries(s));
                 return class.call1((series,)).unwrap().into();
             }
@@ -469,7 +471,7 @@ impl ToPyObject for PyDataType {
                 let field_class = pl.getattr(intern!(py, "Field")).unwrap();
                 let iter = fields.iter().map(|fld| {
                     let name = fld.name().as_str();
-                    let dtype = PyDataType(fld.data_type().clone()).to_object(py);
+                    let dtype = PyDataType(fld.dtype().clone()).to_object(py);
                     field_class.call1((name, dtype)).unwrap()
                 });
                 let fields = PyList::new_bound(py, iter);
@@ -598,8 +600,8 @@ impl<'py> FromPyObject<'py> for PyDataType {
                 let time_unit = ob.getattr(intern!(py, "time_unit")).unwrap();
                 let time_unit = time_unit.extract::<PyTimeUnit>()?.0;
                 let time_zone = ob.getattr(intern!(py, "time_zone")).unwrap();
-                let time_zone = time_zone.extract()?;
-                DataType::Datetime(time_unit, time_zone)
+                let time_zone: Option<String> = time_zone.extract()?;
+                DataType::Datetime(time_unit, time_zone.map(PlSmallStr::from))
             },
             "Duration" => {
                 let time_unit = ob.getattr(intern!(py, "time_unit")).unwrap();

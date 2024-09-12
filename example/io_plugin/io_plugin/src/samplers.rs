@@ -61,7 +61,7 @@ where
             let v = self.d.sample(&mut self.rng);
             out.push(v);
         }
-        Series::from_vec(self.name(), out)
+        Series::from_vec(self.name().into(), out)
     }
 }
 
@@ -107,7 +107,7 @@ impl Sampler for BernoulliSample {
         }
 
         Series::from_arrow(
-            self.name(),
+            self.name().into(),
             BooleanArray::from_data_default(bits.freeze(), None).boxed(),
         )
         .unwrap()

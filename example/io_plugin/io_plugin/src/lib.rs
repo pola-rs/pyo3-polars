@@ -42,7 +42,7 @@ impl RandomSource {
             .iter()
             .map(|s| {
                 let s = s.0.lock().unwrap();
-                Field::new(s.name(), s.dtype())
+                Field::new(s.name().into(), s.dtype())
             })
             .collect::<Schema>();
         PySchema(Arc::new(schema))

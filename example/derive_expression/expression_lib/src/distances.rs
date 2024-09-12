@@ -75,10 +75,10 @@ where
     T::Native: Float,
 {
     let out: ChunkedArray<T> = start_lat
-        .into_iter()
-        .zip(start_long.into_iter())
-        .zip(end_lat.into_iter())
-        .zip(end_long.into_iter())
+        .iter()
+        .zip(start_long.iter())
+        .zip(end_lat.iter())
+        .zip(end_long.iter())
         .map(|(((start_lat, start_long), end_lat), end_long)| {
             let start_lat = start_lat?;
             let start_long = start_long?;
@@ -90,5 +90,5 @@ where
         })
         .collect();
 
-    Ok(out.with_name(start_lat.name()))
+    Ok(out.with_name(start_lat.name().clone()))
 }
