@@ -2,8 +2,6 @@ use super::*;
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
 use polars::export::arrow;
-#[cfg(feature = "dtype-categorical")]
-use polars_core::datatypes::create_enum_data_type;
 use polars_core::datatypes::{CompatLevel, DataType};
 use polars_core::prelude::*;
 use polars_core::utils::materialize_dyn_int;
@@ -592,7 +590,7 @@ impl<'py> FromPyObject<'py> for PyDataType {
                 let s = get_series(&categories.as_borrowed())?;
                 let ca = s.str().map_err(PyPolarsErr::from)?;
                 let categories = ca.downcast_iter().next().unwrap().clone();
-                create_enum_data_type(categories)
+                DataType::Enum(Some(RevMapping::build_local(categories)), Default::default())
             },
             "Date" => DataType::Date,
             "Time" => DataType::Time,
