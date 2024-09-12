@@ -341,7 +341,7 @@ impl IntoPy<PyObject> for PyExpr {
     }
 }
 
-#[cfg(feature = "dtype-full")]
+#[cfg(feature = "dtype-categorical")]
 pub(crate) fn to_series(py: Python, s: PySeries) -> PyObject {
     let series = SERIES.bind(py);
     let constructor = series
@@ -573,11 +573,12 @@ impl<'py> FromPyObject<'py> for PyDataType {
             #[cfg(feature = "dtype-categorical")]
             "Categorical" => {
                 let ordering = ob.getattr(intern!(py, "ordering")).unwrap();
-
-                let ordering = match ordering.extract::<&str>()? {
-                    "physical" => CategoricalOrdering::Physical,
-                    "lexical" => CategoricalOrdering::Lexical,
+                let ordering = ordering.extract::<PyBackedStr>()?;
+                let ordering = match  ordering.as_bytes() {
+                    b"physical" => CategoricalOrdering::Physical,
+                    b"lexical" => CategoricalOrdering::Lexical,
                     ordering => {
+                        let ordering = std::str::from_utf8(ordering).unwrap();
                         return Err(PyValueError::new_err(format!("invalid ordering argument: {ordering}")))
                     }
                 };
@@ -590,7 +591,7 @@ impl<'py> FromPyObject<'py> for PyDataType {
                 let s = get_series(&categories.as_borrowed())?;
                 let ca = s.str().map_err(PyPolarsErr::from)?;
                 let categories = ca.downcast_iter().next().unwrap().clone();
-                DataType::Enum(Some(RevMapping::build_local(categories)), Default::default())
+                DataType::Enum(Some(Arc::new(RevMapping::build_local(categories))), Default::default())
             },
             "Date" => DataType::Date,
             "Time" => DataType::Time,
