@@ -1,16 +1,19 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import polars as pl
-from polars.type_aliases import IntoExpr
 from polars.plugins import register_plugin_function
-from pathlib import Path
 
-from expression_lib.utils import parse_into_expr
+from expression_lib._utils import LIB
+
+if TYPE_CHECKING:
+    from expression_lib._typing import IntoExprColumn
 
 
-
-def pig_latinnify(expr: IntoExpr, capitalize: bool = False) -> pl.Expr:
-    expr = parse_into_expr(expr)
+def pig_latinnify(expr: IntoExprColumn, capitalize: bool = False) -> pl.Expr:
     return register_plugin_function(
-        plugin_path=Path(__file__).parent,
+        plugin_path=LIB,
         args=[expr],
         function_name="pig_latinnify",
         is_elementwise=True,
@@ -19,7 +22,7 @@ def pig_latinnify(expr: IntoExpr, capitalize: bool = False) -> pl.Expr:
 
 
 def append_args(
-    expr: IntoExpr,
+    expr: IntoExprColumn,
     float_arg: float,
     integer_arg: int,
     string_arg: str,
@@ -28,9 +31,8 @@ def append_args(
     """
     This example shows how arguments other than `Series` can be used.
     """
-    expr = parse_into_expr(expr)
     return register_plugin_function(
-        plugin_path=Path(__file__).parent,
+        plugin_path=LIB,
         args=[expr],
         kwargs={
             "float_arg": float_arg,

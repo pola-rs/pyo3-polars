@@ -1,15 +1,19 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import polars as pl
-from polars.type_aliases import IntoExpr
 from polars.plugins import register_plugin_function
 
-from expression_lib.utils import parse_into_expr
-from pathlib import Path
+from expression_lib._utils import LIB
+
+if TYPE_CHECKING:
+    from expression_lib._typing import IntoExprColumn
 
 
-def panic(expr: IntoExpr) -> pl.Expr:
-    expr = parse_into_expr(expr)
+def panic(expr: IntoExprColumn) -> pl.Expr:
     return register_plugin_function(
-        plugin_path=Path(__file__).parent,
+        plugin_path=LIB,
         args=[expr],
         function_name="panic",
     )

@@ -16,11 +16,14 @@ However, note that:
 - static typing will not recognise your custom namespace. Errors such
   as `"Expr" has no attribute "dist"  [attr-defined]`.
 """
+
 from __future__ import annotations
 
-import polars as pl
 from typing import Any, Callable
-from expression_lib import date_util, dist, language, utils, panic
+
+import polars as pl
+
+from expression_lib import date_util, dist, language, panic
 
 
 @pl.api.register_expr_namespace("language")
