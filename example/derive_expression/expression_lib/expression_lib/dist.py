@@ -1,25 +1,28 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import polars as pl
-from polars.type_aliases import IntoExpr
 from polars.plugins import register_plugin_function
-from pathlib import Path
+
+from expression_lib._utils import LIB
+
+if TYPE_CHECKING:
+    from expression_lib._typing import IntoExprColumn
 
 
-from expression_lib.utils import parse_into_expr
-
-def hamming_distance(expr: IntoExpr, other: IntoExpr) -> pl.Expr:
-    expr = parse_into_expr(expr)
+def hamming_distance(expr: IntoExprColumn, other: IntoExprColumn) -> pl.Expr:
     return register_plugin_function(
-        plugin_path=Path(__file__).parent,
+        plugin_path=LIB,
         args=[expr, other],
         function_name="hamming_distance",
         is_elementwise=True,
     )
 
 
-def jaccard_similarity(expr: IntoExpr, other: IntoExpr) -> pl.Expr:
-    expr = parse_into_expr(expr)
+def jaccard_similarity(expr: IntoExprColumn, other: IntoExprColumn) -> pl.Expr:
     return register_plugin_function(
-        plugin_path=Path(__file__).parent,
+        plugin_path=LIB,
         args=[expr, other],
         function_name="jaccard_similarity",
         is_elementwise=True,
@@ -27,14 +30,13 @@ def jaccard_similarity(expr: IntoExpr, other: IntoExpr) -> pl.Expr:
 
 
 def haversine(
-    start_lat: IntoExpr,
-    start_long: IntoExpr,
-    end_lat: IntoExpr,
-    end_long: IntoExpr,
+    start_lat: IntoExprColumn,
+    start_long: IntoExprColumn,
+    end_lat: IntoExprColumn,
+    end_long: IntoExprColumn,
 ) -> pl.Expr:
-    start_lat = parse_into_expr(start_lat)
     return register_plugin_function(
-        plugin_path=Path(__file__).parent,
+        plugin_path=LIB,
         args=[start_lat, start_long, end_lat, end_long],
         function_name="haversine",
         is_elementwise=True,
