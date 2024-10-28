@@ -85,6 +85,7 @@ impl RandomSource {
                     // Apply slice pushdown.
                     // This prevents unneeded sampling.
                     s.next_n(std::cmp::min(self.size_hint, self.n_rows))
+                        .into_column()
                 })
                 .collect::<Vec<_>>();
 
