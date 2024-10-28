@@ -191,9 +191,13 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
         for pyseries in series.iter()? {
             let pyseries = pyseries?;
             let s = pyseries.extract::<PySeries>()?.0;
-            columns.push(s);
+            columns.push(s.into_column());
         }
-        unsafe { Ok(PyDataFrame(DataFrame::new_no_checks(columns))) }
+        unsafe {
+            Ok(PyDataFrame(DataFrame::new_no_checks_height_from_first(
+                columns,
+            )))
+        }
     }
 }
 
@@ -304,7 +308,7 @@ impl IntoPy<PyObject> for PyDataFrame {
             .0
             .get_columns()
             .iter()
-            .map(|s| PySeries(s.clone()).into_py(py))
+            .map(|s| PySeries(s.as_materialized_series().clone()).into_py(py))
             .collect::<Vec<_>>();
 
         let polars = POLARS.bind(py);
@@ -508,7 +512,6 @@ impl<'py> FromPyObject<'py> for PyDataType {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
         let type_name = ob.get_type().qualname()?;
-        let type_name = type_name.to_cow()?;
 
         let dtype = match type_name.as_ref() {
             "DataTypeClass" => {
