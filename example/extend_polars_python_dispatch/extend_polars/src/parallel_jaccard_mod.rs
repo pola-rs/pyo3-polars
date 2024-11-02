@@ -64,7 +64,8 @@ pub(super) fn parallel_jaccard(df: DataFrame, col_a: &str, col_b: &str) -> Polar
             let a = sub_df.column(col_a)?;
             let b = sub_df.column(col_b)?;
 
-            let out = compute_jaccard_similarity(a, b)?;
+            let out =
+                compute_jaccard_similarity(a.as_materialized_series(), b.as_materialized_series())?;
 
             df!(
                 "jaccard" => out

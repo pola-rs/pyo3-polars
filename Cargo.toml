@@ -9,15 +9,15 @@ members = [
 ]
 
 [workspace.dependencies]
-polars = { version = "0.43.0", default-features = false }
-polars-core = { version = "0.43.0", default-features = false }
-polars-ffi = { version = "0.43.0", default-features = false }
-polars-plan = { version = "0.43.0", default-feautres = false }
-polars-lazy = { version = "0.43.0", default-features = false }
+polars = { version = "0.44.0", default-features = false }
+polars-core = { version = "0.44.0", default-features = false }
+polars-ffi = { version = "0.44.0", default-features = false }
+polars-plan = { version = "0.44.0", default-feautres = false }
+polars-lazy = { version = "0.44.0", default-features = false }
 
 [workspace.dependencies.arrow]
 package = "polars-arrow"
-version = "0.43.0"
+version = "0.44.0"
 path = "../polars/crates/polars-arrow"
 default-features = false
 
