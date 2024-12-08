@@ -12,7 +12,7 @@ members = [
 polars = { version = "0.45.0", default-features = false }
 polars-core = { version = "0.45.0", default-features = false }
 polars-ffi = { version = "0.45.0", default-features = false }
-polars-plan = { version = "0.45.0", default-feautres = false }
+polars-plan = { version = "0.45.0", default-features = false }
 polars-lazy = { version = "0.45.0", default-features = false }
 
 [workspace.dependencies.arrow]
