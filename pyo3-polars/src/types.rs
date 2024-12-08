@@ -494,6 +494,8 @@ impl ToPyObject for PyDataType {
             DataType::BinaryOffset => {
                 panic!("this type isn't exposed to python")
             }
+            #[allow(unreachable_patterns)]
+            _ => panic!("activate dtype"),
         }
     }
 }
@@ -511,7 +513,7 @@ impl IntoPy<PyObject> for PySchema {
 impl<'py> FromPyObject<'py> for PyDataType {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
-        let type_name = ob.get_type().qualname()?;
+        let type_name = ob.get_type().qualname()?.to_string();
 
         let dtype = match type_name.as_ref() {
             "DataTypeClass" => {
