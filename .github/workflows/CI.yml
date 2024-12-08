@@ -36,6 +36,10 @@ jobs:
       - run: cargo test
         working-directory: pyo3-polars
 
+      - uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack test --each-feature
+        working-directory: pyo3-polars
+
       - run: make install
         working-directory: example/extend_polars_python_dispatch
 
