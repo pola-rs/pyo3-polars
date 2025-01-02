@@ -1,3 +1,5 @@
+#![allow(missing_docs)] // note - only for create_exception ... document the rest
+
 use std::fmt::{Debug, Formatter};
 
 use polars::prelude::PolarsError;
@@ -6,10 +8,13 @@ use pyo3::exceptions::{PyException, PyIOError, PyIndexError, PyRuntimeError, PyV
 use pyo3::prelude::*;
 use thiserror::Error;
 
+/// Error types for `pyo3-polars`
 #[derive(Error)]
 pub enum PyPolarsErr {
+    /// A wrapped error from the Polars Rust crate
     #[error(transparent)]
     Polars(#[from] PolarsError),
+    /// A non-polars error from `pyo3-polars`
     #[error("{0}")]
     Other(String),
 }

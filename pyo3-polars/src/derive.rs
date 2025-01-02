@@ -1,3 +1,10 @@
+//! Utilities to deriving and work with Polars expressions in a Python context.
+//!
+//! Includes functions to deserialize pickled kwargs, update error messages, and set panic messages.
+//!
+//! Provides FFI functions to get the last error message and the plugin version.
+//!
+//! Sets up a custom panic hook to only show output if `POLARS_VERBOSE` environment variable is "1".
 use polars::prelude::PolarsError;
 use polars_core::error::{to_compute_err, PolarsResult};
 pub use pyo3_polars_derive::polars_expr;
@@ -16,6 +23,7 @@ thread_local! {
     static LAST_ERROR: RefCell<CString> = RefCell::new(CString::default());
 }
 
+/// deserializes a pickled kwargs object
 pub fn _parse_kwargs<'a, T>(kwargs: &'a [u8]) -> PolarsResult<T>
 where
     T: Deserialize<'a>,
@@ -23,12 +31,14 @@ where
     serde_pickle::from_slice(kwargs, Default::default()).map_err(to_compute_err)
 }
 
+/// sets the error message in the thread-local error object
 pub fn _update_last_error(err: PolarsError) {
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     let msg = CString::new(msg).unwrap();
     LAST_ERROR.with(|prev| *prev.borrow_mut() = msg)
 }
 
+/// sets a panic message in the thread-local error object
 pub fn _set_panic() {
     let msg = "PANIC";
     let msg = CString::new(msg).unwrap();
@@ -49,7 +59,7 @@ fn start_up_init() {
     std::panic::set_hook(Box::new(|info| {
         let show_message = std::env::var("POLARS_VERBOSE").as_deref().unwrap_or("") == "1";
         if show_message {
-            eprintln!("{}", info)
+            eprintln!("{info}")
         }
     }));
 }

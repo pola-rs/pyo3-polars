@@ -33,7 +33,7 @@ fn lazy_parallel_jaccard(pydf: PyLazyFrame, col_a: &str, col_b: &str) -> PyResul
 }
 
 /// A Python module implemented in Rust.
-#[pymodule]
+#[pymodule(name = "expression_lib")]
 fn extend_polars(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parallel_jaccard, m)?)?;
     m.add_function(wrap_pyfunction!(lazy_parallel_jaccard, m)?)?;

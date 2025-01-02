@@ -25,4 +25,5 @@ quote = "1.0"
 syn = { version = "2", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
+pyo3-polars = { path = "../pyo3-polars" }
 trybuild = { version = "1", features = ["diff"] }

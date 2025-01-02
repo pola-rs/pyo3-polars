@@ -6,9 +6,9 @@ use pyo3::prelude::*;
 /// Arrow array to Python.
 pub(crate) fn to_py_array(
     array: ArrayRef,
-    py: Python,
+    // py: Python<'py>, // unused ?
     pyarrow: Bound<'_, PyModule>,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'_, PyAny>> {
     let schema = Box::new(ffi::export_field_to_c(&ArrowField::new(
         "".into(),
         array.dtype().clone(),
@@ -24,5 +24,5 @@ pub(crate) fn to_py_array(
         (array_ptr as Py_uintptr_t, schema_ptr as Py_uintptr_t),
     )?;
 
-    Ok(array.to_object(py))
+    Ok(array)
 }

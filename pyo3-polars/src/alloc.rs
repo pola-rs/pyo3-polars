@@ -1,7 +1,8 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::ffi::c_char;
+use std::sync::OnceLock;
 
-use once_cell::race::OnceRef;
+// use once_cell::race::OnceRef;
 use pyo3::ffi::{PyCapsule_Import, Py_IsInitialized};
 use pyo3::Python;
 
@@ -60,7 +61,7 @@ static ALLOCATOR_CAPSULE_NAME: &[u8] = b"polars.polars._allocator\0";
 ///
 /// If the allocator capsule (`polars.polars._allocator`) is not available,
 /// this allocator fallbacks to [`std::alloc::System`].
-pub struct PolarsAllocator(OnceRef<'static, AllocatorCapsule>);
+pub struct PolarsAllocator(OnceLock<&'static AllocatorCapsule>);
 
 impl PolarsAllocator {
     fn get_allocator(&self) -> &'static AllocatorCapsule {
@@ -81,6 +82,8 @@ impl PolarsAllocator {
                 // Do not use eprintln; it may alloc.
                 let msg = b"failed to get allocator capsule\n";
                 // Message length type is platform-dependent.
+                // allow "useless" conversion to disable warning about platform-dependent try-into of msg_len
+                #[allow(clippy::useless_conversion)]
                 let msg_len = msg.len().try_into().unwrap();
                 unsafe { libc::write(2, msg.as_ptr() as *const libc::c_void, msg_len) };
             }
@@ -90,7 +93,7 @@ impl PolarsAllocator {
 
     /// Create a `PolarsAllocator`.
     pub const fn new() -> Self {
-        PolarsAllocator(OnceRef::new())
+        PolarsAllocator(OnceLock::new())
     }
 }
 

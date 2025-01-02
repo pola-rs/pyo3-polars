@@ -41,6 +41,7 @@
 //! })
 //! out_df = my_cool_function(df)
 //! ```
+#![deny(missing_docs)]
 mod alloc;
 #[cfg(feature = "derive")]
 pub mod derive;
@@ -50,14 +51,19 @@ pub mod export;
 mod ffi;
 mod types;
 
+use std::sync::LazyLock;
+
 pub use crate::alloc::PolarsAllocator;
-use once_cell::sync::Lazy;
+// use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 pub use types::*;
 
-pub(crate) static POLARS: Lazy<PyObject> = Lazy::new(|| {
-    Python::with_gil(|py| PyModule::import_bound(py, "polars").unwrap().to_object(py))
+pub(crate) static POLARS: LazyLock<Py<PyModule>> = LazyLock::new(|| {
+    Python::with_gil(|py| {
+        let x = PyModule::import(py, "polars").unwrap().unbind();
+        x
+    })
 });
 
-pub(crate) static SERIES: Lazy<PyObject> =
-    Lazy::new(|| Python::with_gil(|py| POLARS.getattr(py, "Series").unwrap()));
+pub(crate) static SERIES: LazyLock<PyObject> =
+    LazyLock::new(|| Python::with_gil(|py| POLARS.getattr(py, "Series").unwrap()));
