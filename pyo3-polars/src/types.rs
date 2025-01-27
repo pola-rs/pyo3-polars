@@ -1,7 +1,8 @@
 use super::*;
+
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
-use polars::export::arrow;
+use polars_arrow as arrow;
 use polars_core::datatypes::{CompatLevel, DataType};
 use polars_core::prelude::*;
 use polars_core::utils::materialize_dyn_int;
@@ -502,9 +503,10 @@ impl ToPyObject for PyDataType {
 
 impl IntoPy<PyObject> for PySchema {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         for (k, v) in self.0.iter() {
-            dict.set_item(k.as_str(), PyDataType(v.clone())).unwrap();
+            dict.set_item(k.as_str(), PyDataType(v.clone()).to_object(py))
+                .unwrap();
         }
         dict.into_py(py)
     }
