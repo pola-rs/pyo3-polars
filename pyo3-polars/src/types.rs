@@ -168,7 +168,7 @@ impl<'a> FromPyObject<'a> for PySeries {
         let py_name = name.str()?;
         let name = py_name.to_cow()?;
 
-        let kwargs = PyDict::new_bound(ob.py());
+        let kwargs = PyDict::new(ob.py());
         if let Ok(compat_level) = ob.call_method0("_newest_compat_level") {
             let compat_level = compat_level.extract().unwrap();
             let compat_level =
@@ -285,7 +285,7 @@ impl IntoPy<PyObject> for PySeries {
                     }
                 }
 
-                pyseries.to_object(py)
+                pyseries.into_pyobject(py).unwrap().into()
             }
             // Go via pyarrow
             Err(_) => {
@@ -297,7 +297,7 @@ impl IntoPy<PyObject> for PySeries {
                 let arg = to_py_array(arr, py, pyarrow).unwrap();
                 let s = polars.call_method1("from_arrow", (arg,)).unwrap();
                 let s = s.call_method1("rename", (name,)).unwrap();
-                s.to_object(py)
+                s.into_pyobject(py).unwrap().into()
             }
         }
     }
@@ -477,7 +477,7 @@ impl ToPyObject for PyDataType {
                     let dtype = PyDataType(fld.dtype().clone()).to_object(py);
                     field_class.call1((name, dtype)).unwrap()
                 });
-                let fields = PyList::new_bound(py, iter);
+                let fields = PyList::new(py, iter);
                 let struct_class = pl.getattr(intern!(py, "Struct")).unwrap();
                 struct_class.call1((fields,)).unwrap().into()
             }
