@@ -14,6 +14,8 @@ use polars_lazy::frame::LazyFrame;
 use polars_plan::dsl::Expr;
 #[cfg(feature = "lazy")]
 use polars_plan::plans::DslPlan;
+#[cfg(feature = "lazy")]
+use polars_utils::pl_serialize;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::intern;
@@ -21,7 +23,7 @@ use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedStr;
 #[cfg(feature = "dtype-struct")]
 use pyo3::types::PyList;
-use pyo3::types::{PyDict, PyString};
+use pyo3::types::{PyBytes, PyDict, PyString};
 
 #[cfg(feature = "dtype-categorical")]
 pub(crate) fn get_series(obj: &Bound<'_, PyAny>) -> PyResult<Series> {
@@ -211,12 +213,18 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
 #[cfg(feature = "lazy")]
 impl<'a> FromPyObject<'a> for PyLazyFrame {
     fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
-        let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
-        let lp: DslPlan = ciborium::de::from_reader(&*s).map_err(
+        let s = ob.call_method0("__getstate__")?;
+        let b = s.extract::<Bound<'_, PyBytes>>()?;
+        let b = b.as_bytes();
+
+        let lp: DslPlan = pl_serialize::SerializeOptions::default()
+            .deserialize_from_reader(&*b)
+            .map_err(
             |e| PyPolarsErr::Other(
                 format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {}", e)
             )
         )?;
+
         Ok(PyLazyFrame(LazyFrame::from(lp)))
     }
 }
@@ -225,11 +233,15 @@ impl<'a> FromPyObject<'a> for PyLazyFrame {
 impl<'a> FromPyObject<'a> for PyExpr {
     fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
         let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
-        let e: Expr = ciborium::de::from_reader(&*s).map_err(
+
+        let e: Expr = pl_serialize::SerializeOptions::default()
+            .deserialize_from_reader(&*s)
+            .map_err(
             |e| PyPolarsErr::Other(
                 format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {}", e)
             )
         )?;
+
         Ok(PyExpr(e))
     }
 }
@@ -338,15 +350,16 @@ impl<'py> IntoPyObject<'py> for PyLazyFrame {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        dbg!("into py");
         let polars = POLARS.bind(py);
         let cls = polars.getattr("LazyFrame")?;
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
-        let mut writer: Vec<u8> = vec![];
-        ciborium::ser::into_writer(&self.0.logical_plan, &mut writer).map_err(|err| {
-            let msg = format!("serialization failed: {err}");
-            PyValueError::new_err(msg)
-        })?;
-        instance.call_method1("__setstate__", (&*writer,))
+
+        let buf = pl_serialize::SerializeOptions::default()
+            .serialize_to_bytes(&self.0.logical_plan)
+            .unwrap();
+        instance.call_method1("__setstate__", (&buf,))?;
+        Ok(instance)
     }
 }
 
@@ -360,11 +373,13 @@ impl<'py> IntoPyObject<'py> for PyExpr {
         let polars = POLARS.bind(py);
         let cls = polars.getattr("Expr")?;
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,))?;
-        let mut writer: Vec<u8> = vec![];
-        ciborium::ser::into_writer(&self.0, &mut writer).unwrap();
+
+        let buf = pl_serialize::SerializeOptions::default()
+            .serialize_to_bytes(&self.0)
+            .unwrap();
 
         instance
-            .call_method1("__setstate__", (&*writer,))
+            .call_method1("__setstate__", (&buf,))
             .map_err(|err| {
                 let msg = format!("deserialization failed: {err}");
                 PyValueError::new_err(msg)
