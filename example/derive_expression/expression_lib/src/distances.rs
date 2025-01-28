@@ -1,6 +1,6 @@
-use polars::export::arrow::array::PrimitiveArray;
-use polars::export::num::Float;
+use num::Float;
 use polars::prelude::*;
+use polars_arrow::array::PrimitiveArray;
 use pyo3_polars::export::polars_core::utils::arrow::types::NativeType;
 use pyo3_polars::export::polars_core::with_match_physical_integer_type;
 use std::hash::Hash;

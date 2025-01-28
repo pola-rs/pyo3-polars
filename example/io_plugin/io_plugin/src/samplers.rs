@@ -1,9 +1,9 @@
-use polars::export::arrow::bitmap::MutableBitmap;
-use polars::export::arrow::types::NativeType;
 use polars::prelude::*;
+use polars_arrow::array::BooleanArray;
+use polars_arrow::bitmap::MutableBitmap;
+use polars_arrow::types::NativeType;
 use pyo3::{pyclass, pyfunction};
 use pyo3_polars::export::polars_core::datatypes::{DataType, PolarsDataType};
-use pyo3_polars::export::polars_core::export::arrow::array::BooleanArray;
 use pyo3_polars::export::polars_core::prelude::Series;
 use pyo3_polars::PyDataType;
 use rand::distributions::uniform::SampleUniform;

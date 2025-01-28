@@ -55,9 +55,8 @@ use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 pub use types::*;
 
-pub(crate) static POLARS: Lazy<PyObject> = Lazy::new(|| {
-    Python::with_gil(|py| PyModule::import_bound(py, "polars").unwrap().to_object(py))
-});
+pub(crate) static POLARS: Lazy<Py<PyModule>> =
+    Lazy::new(|| Python::with_gil(|py| PyModule::import(py, "polars").unwrap().unbind()));
 
-pub(crate) static SERIES: Lazy<PyObject> =
+pub(crate) static SERIES: Lazy<Py<PyAny>> =
     Lazy::new(|| Python::with_gil(|py| POLARS.getattr(py, "Series").unwrap()));

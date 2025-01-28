@@ -1,7 +1,10 @@
+use std::convert::Infallible;
+
 use super::*;
+
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
-use polars::export::arrow;
+use polars_arrow as arrow;
 use polars_core::datatypes::{CompatLevel, DataType};
 use polars_core::prelude::*;
 use polars_core::utils::materialize_dyn_int;
@@ -11,14 +14,16 @@ use polars_lazy::frame::LazyFrame;
 use polars_plan::dsl::Expr;
 #[cfg(feature = "lazy")]
 use polars_plan::plans::DslPlan;
+#[cfg(feature = "lazy")]
+use polars_utils::pl_serialize;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedStr;
-use pyo3::types::PyDict;
 #[cfg(feature = "dtype-struct")]
 use pyo3::types::PyList;
+use pyo3::types::{PyBytes, PyDict, PyString};
 
 #[cfg(feature = "dtype-categorical")]
 pub(crate) fn get_series(obj: &Bound<'_, PyAny>) -> PyResult<Series> {
@@ -98,14 +103,18 @@ impl<'py> FromPyObject<'py> for PyTimeUnit {
     }
 }
 
-impl ToPyObject for PyTimeUnit {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for PyTimeUnit {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let time_unit = match self.0 {
             TimeUnit::Nanoseconds => "ns",
             TimeUnit::Microseconds => "us",
             TimeUnit::Milliseconds => "ms",
         };
-        time_unit.into_py(py)
+        time_unit.into_pyobject(py)
     }
 }
 
@@ -167,7 +176,7 @@ impl<'a> FromPyObject<'a> for PySeries {
         let py_name = name.str()?;
         let name = py_name.to_cow()?;
 
-        let kwargs = PyDict::new_bound(ob.py());
+        let kwargs = PyDict::new(ob.py());
         if let Ok(compat_level) = ob.call_method0("_newest_compat_level") {
             let compat_level = compat_level.extract().unwrap();
             let compat_level =
@@ -188,7 +197,7 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
         let series = ob.call_method0("get_columns")?;
         let n = ob.getattr("width")?.extract::<usize>()?;
         let mut columns = Vec::with_capacity(n);
-        for pyseries in series.iter()? {
+        for pyseries in series.try_iter()? {
             let pyseries = pyseries?;
             let s = pyseries.extract::<PySeries>()?.0;
             columns.push(s.into_column());
@@ -204,12 +213,18 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
 #[cfg(feature = "lazy")]
 impl<'a> FromPyObject<'a> for PyLazyFrame {
     fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
-        let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
-        let lp: DslPlan = ciborium::de::from_reader(&*s).map_err(
+        let s = ob.call_method0("__getstate__")?;
+        let b = s.extract::<Bound<'_, PyBytes>>()?;
+        let b = b.as_bytes();
+
+        let lp: DslPlan = pl_serialize::SerializeOptions::default()
+            .deserialize_from_reader(&*b)
+            .map_err(
             |e| PyPolarsErr::Other(
                 format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {}", e)
             )
         )?;
+
         Ok(PyLazyFrame(LazyFrame::from(lp)))
     }
 }
@@ -218,17 +233,25 @@ impl<'a> FromPyObject<'a> for PyLazyFrame {
 impl<'a> FromPyObject<'a> for PyExpr {
     fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
         let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
-        let e: Expr = ciborium::de::from_reader(&*s).map_err(
+
+        let e: Expr = pl_serialize::SerializeOptions::default()
+            .deserialize_from_reader(&*s)
+            .map_err(
             |e| PyPolarsErr::Other(
                 format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {}", e)
             )
         )?;
+
         Ok(PyExpr(e))
     }
 }
 
-impl IntoPy<PyObject> for PySeries {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for PySeries {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let polars = POLARS.bind(py);
         let s = SERIES.bind(py);
         match s
@@ -284,64 +307,83 @@ impl IntoPy<PyObject> for PySeries {
                     }
                 }
 
-                pyseries.to_object(py)
+                Ok(pyseries)
             }
             // Go via pyarrow
             Err(_) => {
                 let s = self.0.rechunk();
                 let name = s.name().as_str();
                 let arr = s.to_arrow(0, CompatLevel::oldest());
-                let pyarrow = py.import_bound("pyarrow").expect("pyarrow not installed");
+                let pyarrow = py.import("pyarrow").expect("pyarrow not installed");
 
-                let arg = to_py_array(arr, py, pyarrow).unwrap();
+                let arg = to_py_array(arr, pyarrow).unwrap();
                 let s = polars.call_method1("from_arrow", (arg,)).unwrap();
                 let s = s.call_method1("rename", (name,)).unwrap();
-                s.to_object(py)
+                Ok(s)
             }
         }
     }
 }
 
-impl IntoPy<PyObject> for PyDataFrame {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for PyDataFrame {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let pyseries = self
             .0
             .get_columns()
             .iter()
-            .map(|s| PySeries(s.as_materialized_series().clone()).into_py(py))
-            .collect::<Vec<_>>();
+            .map(|s| PySeries(s.as_materialized_series().clone()).into_pyobject(py))
+            .collect::<PyResult<Vec<_>>>()?;
 
         let polars = POLARS.bind(py);
-        let df_object = polars.call_method1("DataFrame", (pyseries,)).unwrap();
-        df_object.into_py(py)
+        polars.call_method1("DataFrame", (pyseries,))
     }
 }
 
 #[cfg(feature = "lazy")]
-impl IntoPy<PyObject> for PyLazyFrame {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let polars = POLARS.bind(py);
-        let cls = polars.getattr("LazyFrame").unwrap();
-        let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
-        let mut writer: Vec<u8> = vec![];
-        ciborium::ser::into_writer(&self.0.logical_plan, &mut writer).unwrap();
+impl<'py> IntoPyObject<'py> for PyLazyFrame {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
 
-        instance.call_method1("__setstate__", (&*writer,)).unwrap();
-        instance.into_py(py)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        dbg!("into py");
+        let polars = POLARS.bind(py);
+        let cls = polars.getattr("LazyFrame")?;
+        let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
+
+        let buf = pl_serialize::SerializeOptions::default()
+            .serialize_to_bytes(&self.0.logical_plan)
+            .unwrap();
+        instance.call_method1("__setstate__", (&buf,))?;
+        Ok(instance)
     }
 }
 
 #[cfg(feature = "lazy")]
-impl IntoPy<PyObject> for PyExpr {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let polars = POLARS.bind(py);
-        let cls = polars.getattr("Expr").unwrap();
-        let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
-        let mut writer: Vec<u8> = vec![];
-        ciborium::ser::into_writer(&self.0, &mut writer).unwrap();
+impl<'py> IntoPyObject<'py> for PyExpr {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
 
-        instance.call_method1("__setstate__", (&*writer,)).unwrap();
-        instance.into_py(py)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let polars = POLARS.bind(py);
+        let cls = polars.getattr("Expr")?;
+        let instance = cls.call_method1(intern!(py, "__new__"), (&cls,))?;
+
+        let buf = pl_serialize::SerializeOptions::default()
+            .serialize_to_bytes(&self.0)
+            .unwrap();
+
+        instance
+            .call_method1("__setstate__", (&buf,))
+            .map_err(|err| {
+                let msg = format!("deserialization failed: {err}");
+                PyValueError::new_err(msg)
+            })
     }
 }
 
@@ -351,103 +393,109 @@ pub(crate) fn to_series(py: Python, s: PySeries) -> PyObject {
     let constructor = series
         .getattr(intern!(series.py(), "_from_pyseries"))
         .unwrap();
-    constructor.call1((s,)).unwrap().into_py(py)
+    constructor
+        .call1((s,))
+        .unwrap()
+        .into_pyobject(py)
+        .unwrap()
+        .into()
 }
 
-impl ToPyObject for PyDataType {
-    fn to_object(&self, py: Python) -> PyObject {
+impl<'py> IntoPyObject<'py> for PyDataType {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let pl = POLARS.bind(py);
 
         match &self.0 {
             DataType::Int8 => {
                 let class = pl.getattr(intern!(py, "Int8")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Int16 => {
                 let class = pl.getattr(intern!(py, "Int16")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Int32 => {
                 let class = pl.getattr(intern!(py, "Int32")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Int64 => {
                 let class = pl.getattr(intern!(py, "Int64")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::UInt8 => {
                 let class = pl.getattr(intern!(py, "UInt8")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::UInt16 => {
                 let class = pl.getattr(intern!(py, "UInt16")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::UInt32 => {
                 let class = pl.getattr(intern!(py, "UInt32")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::UInt64 => {
                 let class = pl.getattr(intern!(py, "UInt64")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Float32 => {
                 let class = pl.getattr(intern!(py, "Float32")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Float64 | DataType::Unknown(UnknownKind::Float) => {
                 let class = pl.getattr(intern!(py, "Float64")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             #[cfg(feature = "dtype-decimal")]
             DataType::Decimal(precision, scale) => {
                 let class = pl.getattr(intern!(py, "Decimal")).unwrap();
                 let args = (*precision, *scale);
-                class.call1(args).unwrap().into()
+                class.call1(args)
             }
             DataType::Boolean => {
                 let class = pl.getattr(intern!(py, "Boolean")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::String | DataType::Unknown(UnknownKind::Str) => {
                 let class = pl.getattr(intern!(py, "String")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Binary => {
                 let class = pl.getattr(intern!(py, "Binary")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             #[cfg(feature = "dtype-array")]
             DataType::Array(inner, size) => {
                 let class = pl.getattr(intern!(py, "Array")).unwrap();
-                let inner = PyDataType(*inner.clone()).to_object(py);
+                let inner = PyDataType(*inner.clone()).into_pyobject(py)?;
                 let args = (inner, *size);
-                class.call1(args).unwrap().into()
+                class.call1(args)
             }
             DataType::List(inner) => {
                 let class = pl.getattr(intern!(py, "List")).unwrap();
-                let inner = PyDataType(*inner.clone()).to_object(py);
-                class.call1((inner,)).unwrap().into()
+                let inner = PyDataType(*inner.clone()).into_pyobject(py)?;
+                class.call1((inner,))
             }
             DataType::Date => {
                 let class = pl.getattr(intern!(py, "Date")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Datetime(tu, tz) => {
                 let datetime_class = pl.getattr(intern!(py, "Datetime")).unwrap();
-                datetime_class
-                    .call1((tu.to_ascii(), tz.as_ref().map(|s| s.as_str())))
-                    .unwrap()
-                    .into()
+                datetime_class.call1((tu.to_ascii(), tz.as_ref().map(|s| s.as_str())))
             }
             DataType::Duration(tu) => {
                 let duration_class = pl.getattr(intern!(py, "Duration")).unwrap();
-                duration_class.call1((tu.to_ascii(),)).unwrap().into()
+                duration_class.call1((tu.to_ascii(),))
             }
             #[cfg(feature = "object")]
             DataType::Object(_, _) => {
                 let class = pl.getattr(intern!(py, "Object")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             #[cfg(feature = "dtype-categorical")]
             DataType::Categorical(_, ordering) => {
@@ -456,7 +504,7 @@ impl ToPyObject for PyDataType {
                     CategoricalOrdering::Physical => "physical",
                     CategoricalOrdering::Lexical => "lexical",
                 };
-                class.call1((ordering,)).unwrap().into()
+                class.call1((ordering,))
             }
             #[cfg(feature = "dtype-categorical")]
             DataType::Enum(rev_map, _) => {
@@ -465,31 +513,34 @@ impl ToPyObject for PyDataType {
                 let class = pl.getattr(intern!(py, "Enum")).unwrap();
                 let s = Series::from_arrow("category".into(), categories.clone().boxed()).unwrap();
                 let series = to_series(py, PySeries(s));
-                return class.call1((series,)).unwrap().into();
+                return class.call1((series,));
             }
-            DataType::Time => pl.getattr(intern!(py, "Time")).unwrap().into(),
+            DataType::Time => pl.getattr(intern!(py, "Time")),
             #[cfg(feature = "dtype-struct")]
             DataType::Struct(fields) => {
                 let field_class = pl.getattr(intern!(py, "Field")).unwrap();
-                let iter = fields.iter().map(|fld| {
-                    let name = fld.name().as_str();
-                    let dtype = PyDataType(fld.dtype().clone()).to_object(py);
-                    field_class.call1((name, dtype)).unwrap()
-                });
-                let fields = PyList::new_bound(py, iter);
+                let iter = fields
+                    .iter()
+                    .map(|fld| {
+                        let name = fld.name().as_str();
+                        let dtype = PyDataType(fld.dtype().clone()).into_pyobject(py)?;
+                        field_class.call1((name, dtype))
+                    })
+                    .collect::<PyResult<Vec<_>>>()?;
+                let fields = PyList::new(py, iter)?;
                 let struct_class = pl.getattr(intern!(py, "Struct")).unwrap();
-                struct_class.call1((fields,)).unwrap().into()
+                struct_class.call1((fields,))
             }
             DataType::Null => {
                 let class = pl.getattr(intern!(py, "Null")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::Unknown(UnknownKind::Int(v)) => {
-                PyDataType(materialize_dyn_int(*v).dtype()).to_object(py)
+                PyDataType(materialize_dyn_int(*v).dtype()).into_pyobject(py)
             }
             DataType::Unknown(_) => {
                 let class = pl.getattr(intern!(py, "Unknown")).unwrap();
-                class.call0().unwrap().into()
+                class.call0()
             }
             DataType::BinaryOffset => {
                 panic!("this type isn't exposed to python")
@@ -500,13 +551,17 @@ impl ToPyObject for PyDataType {
     }
 }
 
-impl IntoPy<PyObject> for PySchema {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new_bound(py);
+impl<'py> IntoPyObject<'py> for PySchema {
+    type Target = PyDict;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
         for (k, v) in self.0.iter() {
-            dict.set_item(k.as_str(), PyDataType(v.clone())).unwrap();
+            dict.set_item(k.as_str(), PyDataType(v.clone()).into_pyobject(py)?)?;
         }
-        dict.into_py(py)
+        Ok(dict)
     }
 }
 

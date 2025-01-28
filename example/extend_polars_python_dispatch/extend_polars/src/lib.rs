@@ -27,6 +27,7 @@ fn debug(pydf: PyDataFrame) -> PyResult<PyDataFrame> {
 #[pyfunction]
 fn lazy_parallel_jaccard(pydf: PyLazyFrame, col_a: &str, col_b: &str) -> PyResult<PyLazyFrame> {
     let df: LazyFrame = pydf.into();
+    dbg!(&df.describe_plan());
     let df = parallel_jaccard_mod::parallel_jaccard(df.collect().unwrap(), col_a, col_b)
         .map_err(PyPolarsErr::from)?;
     Ok(PyLazyFrame(df.lazy()))

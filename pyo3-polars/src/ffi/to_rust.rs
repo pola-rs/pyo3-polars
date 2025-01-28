@@ -1,6 +1,6 @@
 use crate::error::PyPolarsErr;
-use polars::export::arrow::ffi;
 use polars::prelude::*;
+use polars_arrow::ffi;
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
 

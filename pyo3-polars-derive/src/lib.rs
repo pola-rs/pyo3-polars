@@ -197,7 +197,7 @@ fn quote_get_inputs() -> proc_macro2::TokenStream {
     quote!(
              let inputs = std::slice::from_raw_parts(field, len);
              let inputs = inputs.iter().map(|field| {
-                 let field = polars_core::export::arrow::ffi::import_field_from_c(field).unwrap();
+                 let field = polars_arrow::ffi::import_field_from_c(field).unwrap();
                  let out = polars_core::prelude::Field::from(&field);
                  out
              }).collect::<Vec<_>>();
@@ -227,9 +227,9 @@ fn create_field_function(
     quote! (
         #[no_mangle]
         pub unsafe extern "C" fn #map_field_name(
-            field: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            field: *mut polars_arrow::ffi::ArrowSchema,
             len: usize,
-            return_value: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            return_value: *mut polars_arrow::ffi::ArrowSchema,
             kwargs_ptr: *const u8,
             kwargs_len: usize,
         ) {
@@ -240,7 +240,7 @@ fn create_field_function(
 
                 match result {
                     Ok(out) => {
-                        let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow(CompatLevel::newest()));
+                        let out = polars_arrow::ffi::export_field_to_c(&out.to_arrow(CompatLevel::newest()));
                         *return_value = out;
                     },
                     Err(err) => {
@@ -268,16 +268,16 @@ fn create_field_function_from_with_dtype(
     quote! (
         #[no_mangle]
         pub unsafe extern "C" fn #map_field_name(
-            field: *mut polars_core::export::arrow::ffi::ArrowSchema,
+            field: *mut polars_arrow::ffi::ArrowSchema,
             len: usize,
-            return_value: *mut polars_core::export::arrow::ffi::ArrowSchema
+            return_value: *mut polars_arrow::ffi::ArrowSchema
         ) {
             #inputs
 
             let mapper = polars_plan::dsl::FieldsMapper::new(&inputs);
             let dtype = polars_core::datatypes::DataType::#dtype;
             let out = mapper.with_dtype(dtype).unwrap();
-            let out = polars_core::export::arrow::ffi::export_field_to_c(&out.to_arrow(CompatLevel::newest()));
+            let out = polars_arrow::ffi::export_field_to_c(&out.to_arrow(CompatLevel::newest()));
             *return_value = out;
         }
     )

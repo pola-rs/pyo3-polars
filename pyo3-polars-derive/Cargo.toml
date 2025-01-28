@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-polars-derive"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 license = "MIT"
 readme = "README.md"
@@ -20,6 +20,7 @@ path = "tests/run.rs"
 polars-core = { workspace = true }
 polars-ffi = { workspace = true }
 polars-plan = { workspace = true }
+polars-arrow = { workspace = true }
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2", features = ["full", "extra-traits"] }
