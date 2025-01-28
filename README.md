@@ -4,7 +4,7 @@
     <img src="https://img.shields.io/crates/v/pyo3-polars.svg"/>
   </a>
 
-Documentation for this functionality may also be found in the [Polars User Guide](https://docs.pola.rs/user-guide/expressions/plugins/).
+Documentation for this functionality may also be found in the [Polars User Guide](https://docs.pola.rs/user-guide/plugins/).
 This is new functionality and should be preferred over `2.` as this
 will circumvent the GIL and will be the way we want to support extending polars.
 
