@@ -27,3 +27,6 @@ syn = { version = "2", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
 trybuild = { version = "1", features = ["diff"] }
+pyo3-polars = { version = "0.20.0", path = "../pyo3-polars", features = [
+  "derive",
+] } # Include for integration tests
