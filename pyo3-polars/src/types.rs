@@ -21,9 +21,11 @@ use pyo3::ffi::Py_uintptr_t;
 use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedStr;
+#[cfg(feature = "lazy")]
+use pyo3::types::PyBytes;
 #[cfg(feature = "dtype-struct")]
 use pyo3::types::PyList;
-use pyo3::types::{PyBytes, PyDict, PyString};
+use pyo3::types::{PyDict, PyString};
 
 #[cfg(feature = "dtype-categorical")]
 pub(crate) fn get_series(obj: &Bound<'_, PyAny>) -> PyResult<Series> {
