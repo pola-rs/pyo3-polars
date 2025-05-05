@@ -1,2 +1,2 @@
 maturin
-polars[pyarrow]<1.22
+polars[pyarrow]
