@@ -1,6 +1,6 @@
 use polars::prelude::*;
 use polars_plan::dsl::FieldsMapper;
-use pyo3_polars::derive::{polars_expr, CallerContext};
+use pyo3_polars::derive::{CallerContext, polars_expr};
 use pyo3_polars::export::polars_core::POOL;
 use serde::Deserialize;
 use std::fmt::Write;

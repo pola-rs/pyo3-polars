@@ -11,9 +11,9 @@ use polars_core::utils::materialize_dyn_int;
 #[cfg(feature = "lazy")]
 use polars_lazy::frame::LazyFrame;
 #[cfg(feature = "lazy")]
-use polars_plan::dsl::Expr;
+use polars_plan::dsl::DslPlan;
 #[cfg(feature = "lazy")]
-use polars_plan::plans::DslPlan;
+use polars_plan::dsl::Expr;
 #[cfg(feature = "lazy")]
 use polars_utils::pl_serialize;
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -23,7 +23,7 @@ use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedStr;
 #[cfg(feature = "dtype-struct")]
 use pyo3::types::PyList;
-use pyo3::types::{PyBytes, PyDict, PyString};
+use pyo3::types::{PyDict, PyString};
 
 #[cfg(feature = "dtype-categorical")]
 pub(crate) fn get_series(obj: &Bound<'_, PyAny>) -> PyResult<Series> {
@@ -214,14 +214,12 @@ impl<'a> FromPyObject<'a> for PyDataFrame {
 impl<'a> FromPyObject<'a> for PyLazyFrame {
     fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
         let s = ob.call_method0("__getstate__")?;
-        let b = s.extract::<Bound<'_, PyBytes>>()?;
+        let b = s.extract::<Bound<'_, pyo3::types::PyBytes>>()?;
         let b = b.as_bytes();
 
-        let lp: DslPlan = pl_serialize::SerializeOptions::default()
-            .deserialize_from_reader(&*b)
-            .map_err(
-            |e| PyPolarsErr::Other(
-                format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {}", e)
+        let lp = DslPlan::deserialize_versioned(b)
+            .map_err(|e| PyPolarsErr::Other(
+                format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {e}")
             )
         )?;
 
@@ -235,10 +233,10 @@ impl<'a> FromPyObject<'a> for PyExpr {
         let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
 
         let e: Expr = pl_serialize::SerializeOptions::default()
-            .deserialize_from_reader(&*s)
+            .deserialize_from_reader::<Expr, &[u8], false>(&*s)
             .map_err(
             |e| PyPolarsErr::Other(
-                format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {}", e)
+                format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {e}")
             )
         )?;
 
@@ -355,10 +353,10 @@ impl<'py> IntoPyObject<'py> for PyLazyFrame {
         let cls = polars.getattr("LazyFrame")?;
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
 
-        let buf = pl_serialize::SerializeOptions::default()
-            .serialize_to_bytes(&self.0.logical_plan)
-            .unwrap();
+        let mut buf: Vec<u8> = Vec::new();
+        self.0.logical_plan.serialize_versioned(&mut buf).unwrap();
         instance.call_method1("__setstate__", (&buf,))?;
+
         Ok(instance)
     }
 }
@@ -375,15 +373,17 @@ impl<'py> IntoPyObject<'py> for PyExpr {
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,))?;
 
         let buf = pl_serialize::SerializeOptions::default()
-            .serialize_to_bytes(&self.0)
+            .serialize_to_bytes::<Expr, true>(&self.0)
             .unwrap();
 
-        instance
-            .call_method1("__setstate__", (&buf,))
+        let _ = instance
+            .call_method1("__setstate__", (buf.as_slice(),))
             .map_err(|err| {
                 let msg = format!("deserialization failed: {err}");
                 PyValueError::new_err(msg)
-            })
+            });
+
+        Ok(instance)
     }
 }
 
@@ -493,7 +493,7 @@ impl<'py> IntoPyObject<'py> for PyDataType {
                 duration_class.call1((tu.to_ascii(),))
             }
             #[cfg(feature = "object")]
-            DataType::Object(_, _) => {
+            DataType::Object(_) => {
                 let class = pl.getattr(intern!(py, "Object")).unwrap();
                 class.call0()
             }
@@ -513,7 +513,7 @@ impl<'py> IntoPyObject<'py> for PyDataType {
                 let class = pl.getattr(intern!(py, "Enum")).unwrap();
                 let s = Series::from_arrow("category".into(), categories.clone().boxed()).unwrap();
                 let series = to_series(py, PySeries(s));
-                return class.call1((series,));
+                class.call1((series,))
             }
             DataType::Time => pl.getattr(intern!(py, "Time")),
             #[cfg(feature = "dtype-struct")]

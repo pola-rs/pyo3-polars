@@ -2,7 +2,9 @@ use std::fmt::{Debug, Formatter};
 
 use polars::prelude::PolarsError;
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyIOError, PyIndexError, PyRuntimeError, PyValueError};
+use pyo3::exceptions::{
+    PyAssertionError, PyException, PyIOError, PyIndexError, PyRuntimeError, PyValueError,
+};
 use pyo3::prelude::*;
 use thiserror::Error;
 
@@ -39,6 +41,8 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                 PolarsError::SQLInterface(err) => SQLInterface::new_err(err.to_string()),
                 PolarsError::SQLSyntax(err) => SQLSyntax::new_err(err.to_string()),
                 PolarsError::Context { error, .. } => convert(error),
+                PolarsError::AssertionError(err) => Assertion::new_err(err.to_string()),
+                PolarsError::Python { error } => Python::new_err(error.to_string()),
             }
         }
 
@@ -54,8 +58,8 @@ impl Debug for PyPolarsErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use PyPolarsErr::*;
         match self {
-            Polars(err) => write!(f, "{:?}", err),
-            Other(err) => write!(f, "BindingsError: {:?}", err),
+            Polars(err) => write!(f, "{err:?}"),
+            Other(err) => write!(f, "BindingsError: {err:?}"),
         }
     }
 }
@@ -71,3 +75,5 @@ create_exception!(exceptions, DuplicateError, PyException);
 create_exception!(exceptions, StringCacheMismatchError, PyException);
 create_exception!(exceptions, SQLInterface, PyException);
 create_exception!(exceptions, SQLSyntax, PyException);
+create_exception!(exceptions, Assertion, PyAssertionError);
+create_exception!(exceptions, Python, PyException);

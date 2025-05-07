@@ -15,7 +15,7 @@ install-release: venv
 
 clean:
 	-@rm -r venv
-	-@cd extend_polars && cargo clean
+	-@cd io_plugin && cargo clean
 
 
 run: install

@@ -47,7 +47,9 @@ out = df.with_columns(
 ).with_columns(
     hamming_dist=pl.col("names").dist.hamming_distance("pig_latin"),
     jaccard_sim=pl.col("dist_a").dist.jaccard_similarity("dist_b"),
-    haversine=pl.col("start_lat").dist.haversine("start_lon", "end_lat", "end_lon"),
+    haversine=pl.col("start_lat").dist.haversine(
+        "start_lon", "end_lat", "end_lon"
+    ),
     leap_year=pl.col("dates").date_util.is_leap_year(),
     new_tz=pl.col("datetime").date_util.change_time_zone(),
     appended_args=pl.col("names").language.append_args(
