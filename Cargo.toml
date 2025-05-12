@@ -10,11 +10,11 @@ members = [
 
 [workspace.dependencies]
 polars = { version = "0.47.1", default-features = false }
-polars-error = { version = "0.47.1", features = ["python"], default-features = false }
+polars-error = { version = "0.47.1", default-features = false }
 polars-core = { version = "0.47.1", features = ["object"], default-features = false }
 polars-arrow = { version = "0.47.1", default-features = false }
 polars-ffi = { version = "0.47.1", default-features = false }
-polars-plan = { version = "0.47.1", features = ["python", "serde"], default-features = false }
+polars-plan = { version = "0.47.1", features = ["serde"], default-features = false }
 polars-lazy = { version = "0.47.1", default-features = false }
 polars-python = {version = "0.47.1", default-features = false }
 polars-utils = {version = "0.47.1", features = ["serde"], default-features = false}
