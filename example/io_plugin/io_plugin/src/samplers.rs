@@ -52,7 +52,7 @@ where
     }
 
     fn dtype(&self) -> DataType {
-        T::PolarsType::get_dtype()
+        T::PolarsType::get_static_dtype()
     }
 
     fn next_n(&mut self, n: usize) -> Series {

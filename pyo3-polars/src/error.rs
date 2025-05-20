@@ -2,7 +2,9 @@ use std::fmt::{Debug, Formatter};
 
 use polars::prelude::PolarsError;
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyIOError, PyIndexError, PyRuntimeError, PyValueError};
+use pyo3::exceptions::{
+    PyAssertionError, PyException, PyIOError, PyIndexError, PyRuntimeError, PyValueError,
+};
 use pyo3::prelude::*;
 use thiserror::Error;
 
@@ -16,8 +18,9 @@ pub enum PyPolarsErr {
 
 impl std::convert::From<PyPolarsErr> for PyErr {
     fn from(err: PyPolarsErr) -> PyErr {
-        fn convert(err: &PolarsError) -> PyErr {
+        fn convert(err: PolarsError) -> PyErr {
             match err {
+                PolarsError::AssertionError(error) => PyAssertionError::new_err(error.to_string()),
                 PolarsError::ComputeError(err) => ComputeError::new_err(err.to_string()),
                 PolarsError::NoData(err) => NoDataError::new_err(err.to_string()),
                 PolarsError::ShapeMismatch(err) => ShapeError::new_err(err.to_string()),
@@ -38,14 +41,16 @@ impl std::convert::From<PyPolarsErr> for PyErr {
                 }
                 PolarsError::SQLInterface(err) => SQLInterface::new_err(err.to_string()),
                 PolarsError::SQLSyntax(err) => SQLSyntax::new_err(err.to_string()),
-                PolarsError::Context { error, .. } => convert(error),
+                PolarsError::Context { error, .. } => convert(*error),
+                #[cfg(feature = "lazy")]
+                PolarsError::Python { error } => error.0,
             }
         }
 
         use PyPolarsErr::*;
-        match &err {
+        match err {
             Polars(err) => convert(err),
-            _ => PyRuntimeError::new_err(format!("{:?}", &err)),
+            _ => PyRuntimeError::new_err(format!("{err:?}")),
         }
     }
 }
@@ -60,6 +65,7 @@ impl Debug for PyPolarsErr {
     }
 }
 
+create_exception!(exceptions, AssertionError, PyException);
 create_exception!(exceptions, ColumnNotFound, PyException);
 create_exception!(exceptions, SchemaFieldNotFound, PyException);
 create_exception!(exceptions, StructFieldNotFound, PyException);

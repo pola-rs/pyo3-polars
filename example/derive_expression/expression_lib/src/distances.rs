@@ -25,6 +25,7 @@ fn jacc_helper<T: NativeType + Hash + Eq>(a: &PrimitiveArray<T>, b: &PrimitiveAr
     s3_len as f64 / (s1.len() + s2.len() - s3_len) as f64
 }
 
+#[allow(unexpected_cfgs)]
 pub(super) fn naive_jaccard_sim(a: &ListChunked, b: &ListChunked) -> PolarsResult<Float64Chunked> {
     polars_ensure!(
         a.inner_dtype() == b.inner_dtype(),

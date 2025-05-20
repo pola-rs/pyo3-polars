@@ -11,9 +11,9 @@ use polars_core::utils::materialize_dyn_int;
 #[cfg(feature = "lazy")]
 use polars_lazy::frame::LazyFrame;
 #[cfg(feature = "lazy")]
-use polars_plan::dsl::Expr;
+use polars_plan::dsl::DslPlan;
 #[cfg(feature = "lazy")]
-use polars_plan::plans::DslPlan;
+use polars_plan::dsl::Expr;
 #[cfg(feature = "lazy")]
 use polars_utils::pl_serialize;
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -23,7 +23,10 @@ use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedStr;
 #[cfg(feature = "dtype-struct")]
 use pyo3::types::PyList;
-use pyo3::types::{PyBytes, PyDict, PyString};
+use pyo3::types::{PyDict, PyString};
+
+#[cfg(feature = "lazy")]
+use pyo3::types::PyBytes;
 
 #[cfg(feature = "dtype-categorical")]
 pub(crate) fn get_series(obj: &Bound<'_, PyAny>) -> PyResult<Series> {
@@ -218,7 +221,7 @@ impl<'a> FromPyObject<'a> for PyLazyFrame {
         let b = b.as_bytes();
 
         let lp: DslPlan = pl_serialize::SerializeOptions::default()
-            .deserialize_from_reader(&*b)
+            .deserialize_from_reader::<DslPlan, &[u8], false>(&*b)
             .map_err(
             |e| PyPolarsErr::Other(
                 format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {}", e)
@@ -235,7 +238,7 @@ impl<'a> FromPyObject<'a> for PyExpr {
         let s = ob.call_method0("__getstate__")?.extract::<Vec<u8>>()?;
 
         let e: Expr = pl_serialize::SerializeOptions::default()
-            .deserialize_from_reader(&*s)
+            .deserialize_from_reader::<Expr, &[u8], false>(&*s)
             .map_err(
             |e| PyPolarsErr::Other(
                 format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {}", e)
@@ -356,7 +359,7 @@ impl<'py> IntoPyObject<'py> for PyLazyFrame {
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
 
         let buf = pl_serialize::SerializeOptions::default()
-            .serialize_to_bytes(&self.0.logical_plan)
+            .serialize_to_bytes::<DslPlan, false>(&self.0.logical_plan)
             .unwrap();
         instance.call_method1("__setstate__", (&buf,))?;
         Ok(instance)
@@ -375,7 +378,7 @@ impl<'py> IntoPyObject<'py> for PyExpr {
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,))?;
 
         let buf = pl_serialize::SerializeOptions::default()
-            .serialize_to_bytes(&self.0)
+            .serialize_to_bytes::<Expr, false>(&self.0)
             .unwrap();
 
         instance
@@ -660,7 +663,7 @@ impl<'py> FromPyObject<'py> for PyDataType {
                 let time_unit = time_unit.extract::<PyTimeUnit>()?.0;
                 let time_zone = ob.getattr(intern!(py, "time_zone")).unwrap();
                 let time_zone: Option<String> = time_zone.extract()?;
-                DataType::Datetime(time_unit, time_zone.map(PlSmallStr::from))
+                DataType::Datetime(time_unit, TimeZone::opt_try_new(time_zone).unwrap())
             },
             "Duration" => {
                 let time_unit = ob.getattr(intern!(py, "time_unit")).unwrap();

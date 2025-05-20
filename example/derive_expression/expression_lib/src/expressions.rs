@@ -193,7 +193,10 @@ struct TimeZone {
 
 fn convert_timezone(input_fields: &[Field], kwargs: TimeZone) -> PolarsResult<Field> {
     FieldsMapper::new(input_fields).try_map_dtype(|dtype| match dtype {
-        DataType::Datetime(tu, _) => Ok(DataType::Datetime(*tu, Some(kwargs.tz.into()))),
+        DataType::Datetime(tu, _) => Ok(DataType::Datetime(
+            *tu,
+            datatypes::TimeZone::opt_try_new(Some(kwargs.tz))?,
+        )),
         _ => polars_bail!(ComputeError: "expected datetime"),
     })
 }
@@ -206,6 +209,11 @@ fn change_time_zone(input: &[Series], kwargs: TimeZone) -> PolarsResult<Series> 
     let ca = input.datetime()?;
 
     let mut out = ca.clone();
-    out.set_time_zone(kwargs.tz.into())?;
+
+    let Some(timezone) = datatypes::TimeZone::opt_try_new(Some(kwargs.tz))? else {
+        polars_bail!(ComputeError: "expected timezone")
+    };
+
+    out.set_time_zone(timezone)?;
     Ok(out.into_series())
 }
