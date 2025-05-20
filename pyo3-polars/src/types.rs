@@ -220,13 +220,11 @@ impl<'a> FromPyObject<'a> for PyLazyFrame {
         let b = s.extract::<Bound<'_, PyBytes>>()?;
         let b = b.as_bytes();
 
-        let lp: DslPlan = pl_serialize::SerializeOptions::default()
-            .deserialize_from_reader::<DslPlan, &[u8], false>(&*b)
-            .map_err(
+        let lp = DslPlan::deserialize_versioned(b).map_err(
             |e| PyPolarsErr::Other(
-                format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {}", e)
-            )
-        )?;
+                format!("Error when deserializing LazyFrame. This may be due to mismatched polars versions. {e}")
+            ))
+            ?;
 
         Ok(PyLazyFrame(LazyFrame::from(lp)))
     }
@@ -241,7 +239,7 @@ impl<'a> FromPyObject<'a> for PyExpr {
             .deserialize_from_reader::<Expr, &[u8], false>(&*s)
             .map_err(
             |e| PyPolarsErr::Other(
-                format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {}", e)
+                format!("Error when deserializing 'Expr'. This may be due to mismatched polars versions. {e}")
             )
         )?;
 
@@ -358,10 +356,9 @@ impl<'py> IntoPyObject<'py> for PyLazyFrame {
         let cls = polars.getattr("LazyFrame")?;
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
 
-        let buf = pl_serialize::SerializeOptions::default()
-            .serialize_to_bytes::<DslPlan, false>(&self.0.logical_plan)
-            .unwrap();
-        instance.call_method1("__setstate__", (&buf,))?;
+        let mut v = vec![];
+        self.0.logical_plan.serialize_versioned(&mut v).unwrap();
+        instance.call_method1("__setstate__", (&v,))?;
         Ok(instance)
     }
 }
