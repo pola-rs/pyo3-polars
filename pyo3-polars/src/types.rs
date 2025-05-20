@@ -493,7 +493,7 @@ impl<'py> IntoPyObject<'py> for PyDataType {
                 duration_class.call1((tu.to_ascii(),))
             }
             #[cfg(feature = "object")]
-            DataType::Object(_, _) => {
+            DataType::Object(_) => {
                 let class = pl.getattr(intern!(py, "Object")).unwrap();
                 class.call0()
             }
