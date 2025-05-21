@@ -42,4 +42,4 @@ def scan_random(samplers: list[Any], size: int = 1000) -> pl.LazyFrame:
 
     # create src again to compute the schema
     src = RandomSource(samplers, 0, 0)
-    return register_io_source(callable=source_generator, schema=src.schema())
+    return register_io_source(io_source=source_generator, schema=src.schema())

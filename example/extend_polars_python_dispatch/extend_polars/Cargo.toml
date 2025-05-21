@@ -9,9 +9,9 @@ name = "extend_polars"
 crate-type = ["cdylib"]
 
 [dependencies]
-polars = { workspace = true, features = ["fmt"] }
+polars = { workspace = true, features = ["fmt", "object"] }
 polars-core = { workspace = true }
 polars-lazy = { workspace = true }
-pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3 = { version = "0.24.2", features = ["extension-module"] }
 pyo3-polars = { version = "*", path = "../../../pyo3-polars", features = ["lazy"] }
 rayon = "1.10"
