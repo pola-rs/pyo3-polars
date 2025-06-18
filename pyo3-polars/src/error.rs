@@ -59,8 +59,8 @@ impl Debug for PyPolarsErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use PyPolarsErr::*;
         match self {
-            Polars(err) => write!(f, "{:?}", err),
-            Other(err) => write!(f, "BindingsError: {:?}", err),
+            Polars(err) => write!(f, "{err:?}"),
+            Other(err) => write!(f, "BindingsError: {err:?}"),
         }
     }
 }
