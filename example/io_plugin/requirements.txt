@@ -1,2 +1,2 @@
 maturin
-polars>=1.30.0b1
+polars>=1.31

@@ -274,7 +274,7 @@ fn create_field_function_from_with_dtype(
         ) {
             #inputs
 
-            let mapper = polars_plan::dsl::FieldsMapper::new(&inputs);
+            let mapper = polars_plan::prelude::FieldsMapper::new(&inputs);
             let dtype = polars_core::datatypes::DataType::#dtype;
             let out = mapper.with_dtype(dtype).unwrap();
             let out = polars_arrow::ffi::export_field_to_c(&out.to_arrow(CompatLevel::newest()));
