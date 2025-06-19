@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-polars-derive"
-version = "0.15.0"
+version = "0.16.0"
 edition = "2021"
 license = "MIT"
 readme = "README.md"
@@ -26,5 +26,5 @@ quote = "1.0"
 syn = { version = "2", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
-pyo3-polars = { version = "0.21.0", path = "../pyo3-polars", features = ["derive"] }
+pyo3-polars = { version = "0.22.0", path = "../pyo3-polars", features = ["derive"] }
 trybuild = { version = "1", features = ["diff"] }

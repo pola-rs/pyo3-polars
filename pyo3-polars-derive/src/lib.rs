@@ -137,12 +137,12 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
         1 => match args[0].as_str() {
             "kwargs" => quote_call_kwargs(&ast, fn_name),
             "context" => quote_call_context(&ast, fn_name),
-            a => panic!("didn't expect argument {}", a),
+            a => panic!("didn't expect argument {a}"),
         },
         2 => match (args[0].as_str(), args[1].as_str()) {
             ("context", "kwargs") => quote_call_context_kwargs(&ast, fn_name),
             ("kwargs", "context") => panic!("'kwargs', 'context' order should be reversed"),
-            (a, b) => panic!("didn't expect arguments {}, {}", a, b),
+            (a, b) => panic!("didn't expect arguments {a}, {b}"),
         },
         _ => panic!("didn't expect so many arguments"),
     };
@@ -184,13 +184,13 @@ fn create_expression_function(ast: syn::ItemFn) -> proc_macro2::TokenStream {
 
 fn get_field_function_name(fn_name: &syn::Ident) -> syn::Ident {
     syn::Ident::new(
-        &format!("_polars_plugin_field_{}", fn_name,),
+        &format!("_polars_plugin_field_{fn_name}",),
         fn_name.span(),
     )
 }
 
 fn get_expression_function_name(fn_name: &syn::Ident) -> syn::Ident {
-    syn::Ident::new(&format!("_polars_plugin_{}", fn_name), fn_name.span())
+    syn::Ident::new(&format!("_polars_plugin_{fn_name}"), fn_name.span())
 }
 
 fn quote_get_inputs() -> proc_macro2::TokenStream {
@@ -274,7 +274,7 @@ fn create_field_function_from_with_dtype(
         ) {
             #inputs
 
-            let mapper = polars_plan::dsl::FieldsMapper::new(&inputs);
+            let mapper = polars_plan::prelude::FieldsMapper::new(&inputs);
             let dtype = polars_core::datatypes::DataType::#dtype;
             let out = mapper.with_dtype(dtype).unwrap();
             let out = polars_arrow::ffi::export_field_to_c(&out.to_arrow(CompatLevel::newest()));
