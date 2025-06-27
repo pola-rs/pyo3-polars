@@ -351,7 +351,6 @@ impl<'py> IntoPyObject<'py> for PyLazyFrame {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        dbg!("into py");
         let polars = POLARS.bind(py);
         let cls = polars.getattr("LazyFrame")?;
         let instance = cls.call_method1(intern!(py, "__new__"), (&cls,)).unwrap();
@@ -513,7 +512,7 @@ impl<'py> IntoPyObject<'py> for PyDataType {
                 let class = pl.getattr(intern!(py, "Enum")).unwrap();
                 let s = Series::from_arrow("category".into(), categories.clone().boxed()).unwrap();
                 let series = to_series(py, PySeries(s));
-                return class.call1((series,));
+                class.call1((series,))
             }
             DataType::Time => pl.getattr(intern!(py, "Time")),
             #[cfg(feature = "dtype-struct")]
