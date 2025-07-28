@@ -4,6 +4,7 @@ use super::*;
 
 use crate::error::PyPolarsErr;
 use crate::ffi::to_py::to_py_array;
+use crate::ffi::to_rust::{call_arrow_c_stream, import_stream_pycapsule};
 use polars_arrow as arrow;
 use polars_core::datatypes::{CompatLevel, DataType};
 use polars_core::prelude::*;
@@ -173,6 +174,9 @@ impl AsRef<Schema> for PySchema {
 
 impl<'a> FromPyObject<'a> for PySeries {
     fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
+        if let Ok(capsule) = call_arrow_c_stream(ob) {
+            return import_stream_pycapsule(&capsule);
+        }
         let ob = ob.call_method0("rechunk")?;
 
         let name = ob.getattr("name")?;
